@@ -7,75 +7,303 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script type="importmap">{"imports":{"@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"}}</script>
   <style>
-    :root{--gd:#1a2010;--gm:#2e3618;--gl:#404d20;--y:#f1e640;--gr:#7a8560;--grl:#b8c49a;--w:#edeee8;--err:#e05a4e}
+    :root{
+      --gd:#1a2010;--gm:#2e3618;--gl:#404d20;
+      --y:#f1e640;--yd:rgba(241,230,64,.12);
+      --gr:#7a8560;--grl:#b8c49a;--w:#edeee8;
+      --err:#e05a4e;--ok:#72c96f;
+    }
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:var(--gd);height:100vh;display:flex;align-items:center;justify-content:center}
-    .card{background:linear-gradient(160deg,var(--gl),var(--gm));border:1px solid rgba(241,230,64,.18);border-radius:20px;padding:40px 36px;width:380px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+    body{
+      font-family:'DM Sans',sans-serif;
+      background:var(--gd);
+      min-height:100vh;
+      display:flex;align-items:center;justify-content:center;
+      padding:20px;
+    }
+    body::before{
+      content:'';position:fixed;inset:0;
+      background:
+        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(241,230,64,.06) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 80% 20%, rgba(114,201,111,.04) 0%, transparent 60%);
+      pointer-events:none;
+    }
+
+    .card{
+      background:linear-gradient(160deg, var(--gl) 0%, var(--gm) 100%);
+      border:1px solid rgba(241,230,64,.18);
+      border-radius:20px;
+      padding:36px 32px;
+      width:100%;max-width:400px;
+      box-shadow:0 24px 60px rgba(0,0,0,.5);
+      position:relative;z-index:1;
+    }
+
     .brand{font-size:10px;letter-spacing:.14em;color:var(--gr);text-transform:uppercase;margin-bottom:5px}
-    h1{font-size:26px;font-weight:700;color:var(--y);margin-bottom:3px;letter-spacing:-.3px}
-    .sub{font-size:13px;color:var(--grl);margin-bottom:32px}
+    .logo{font-size:26px;font-weight:700;color:var(--y);margin-bottom:3px;letter-spacing:-.3px}
+    .sub{font-size:13px;color:var(--grl);margin-bottom:26px;min-height:20px;transition:.2s}
+
+    /* ── SWITCH ── */
+    .switch-wrap{
+      display:flex;
+      background:rgba(0,0,0,.3);
+      border-radius:10px;padding:4px;gap:3px;
+      margin-bottom:24px;
+    }
+    .sw-btn{
+      flex:1;padding:9px 8px;border:none;border-radius:7px;
+      font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+      cursor:pointer;transition:.2s;
+      color:var(--grl);background:transparent;
+    }
+    .sw-btn.active{background:var(--y);color:var(--gd);}
+    .sw-btn:not(.active):hover{color:var(--w);}
+
+    /* ── MENSAJES ── */
+    .msg{
+      border-radius:9px;padding:10px 14px;
+      font-size:13px;margin-bottom:14px;display:none;line-height:1.4;
+    }
+    .msg.show{display:block}
+    .msg-err{background:rgba(224,90,78,.12);color:var(--err);border:1px solid rgba(224,90,78,.25)}
+    .msg-ok {background:rgba(114,201,111,.12);color:var(--ok); border:1px solid rgba(114,201,111,.25)}
+
+    /* ── FIELDS ── */
     .field{margin-bottom:14px}
-    label{display:block;font-size:11px;font-weight:600;color:var(--grl);margin-bottom:5px;letter-spacing:.04em}
-    input{width:100%;padding:10px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.25);color:var(--w);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:.15s}
-    input:focus{border-color:var(--y)}
+    label{display:block;font-size:11px;font-weight:600;color:var(--grl);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
+    input{
+      width:100%;padding:11px 14px;border-radius:9px;
+      border:1px solid rgba(255,255,255,.1);
+      background:rgba(0,0,0,.25);color:var(--w);
+      font-family:'DM Sans',sans-serif;font-size:14px;
+      outline:none;transition:.15s;
+    }
+    input:focus{border-color:var(--y);background:rgba(0,0,0,.35)}
     input::placeholder{color:var(--gr)}
-    .btn{width:100%;padding:13px;background:var(--y);color:var(--gd);border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+
+    /* ── STRENGTH ── */
+    .strength{margin-top:7px}
+    .strength-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+    .strength-fill{height:100%;border-radius:2px;width:0%;transition:.3s}
+    .strength-txt{font-size:11px;color:var(--gr);margin-top:4px;min-height:14px}
+
+    /* ── BOTÓN ── */
+    .btn{
+      width:100%;padding:13px;margin-top:8px;
+      background:var(--y);color:var(--gd);
+      border:none;border-radius:10px;
+      font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;
+      cursor:pointer;transition:.15s;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
     .btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px)}
-    .btn:disabled{opacity:.45;cursor:not-allowed}
-    .err-box{background:rgba(224,90,78,.12);color:var(--err);border:1px solid rgba(224,90,78,.25);border-radius:8px;padding:9px 13px;font-size:13px;margin-bottom:14px;display:none}
-    .err-box.show{display:block}
-    .spin{width:16px;height:16px;border:2px solid var(--gd);border-top-color:transparent;border-radius:50%;animation:s .6s linear infinite}
-    @keyframes s{to{transform:rotate(360deg)}}
+    .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+    /* ── SPINNER ── */
+    .spin{
+      width:16px;height:16px;
+      border:2px solid var(--gd);border-top-color:transparent;
+      border-radius:50%;animation:sp .6s linear infinite;display:none;
+    }
+    @keyframes sp{to{transform:rotate(360deg)}}
+
+    /* ── HINT ── */
+    .hint{font-size:12px;color:var(--gr);text-align:center;margin-top:18px;line-height:1.5}
+    .hint span{color:var(--grl);text-decoration:underline;cursor:pointer}
+    .hint span:hover{color:var(--y)}
+
+    /* campos condicionales */
+    .reg-only{display:none}
   </style>
 </head>
 <body>
 <div class="card">
   <div class="brand">Telebachillerato de Michoacán</div>
-  <h1>TEBAM Digital</h1>
-  <p class="sub">Accede con tu correo institucional</p>
-  <div class="err-box" id="errBox"></div>
-  <div class="field"><label>Correo Institucional</label><input id="email" type="email" placeholder="usuario@tebam.edu.mx" autocomplete="email" /></div>
-  <div class="field"><label>Contraseña</label><input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" /></div>
-  <button class="btn" id="btn"><span id="btnTxt">Entrar al Portal</span></button>
+  <div class="logo">TEBAM Digital</div>
+  <p class="sub" id="sub">Accede con tu correo institucional</p>
+
+  <!-- Switch -->
+  <div class="switch-wrap">
+    <button class="sw-btn active" id="swL" onclick="setMode('login')">Iniciar Sesión</button>
+    <button class="sw-btn"        id="swR" onclick="setMode('reg')">Crear Cuenta</button>
+  </div>
+
+  <!-- Mensajes -->
+  <div class="msg msg-err" id="mErr"></div>
+  <div class="msg msg-ok"  id="mOk"></div>
+
+  <!-- Nombre (solo registro) -->
+  <div class="field reg-only" id="fNombre">
+    <label>Nombre Completo</label>
+    <input id="nombre" type="text" placeholder="Ej. Juan García López" autocomplete="name"/>
+  </div>
+
+  <!-- Email -->
+  <div class="field">
+    <label>Correo Institucional</label>
+    <input id="email" type="email" placeholder="usuario@tebam.edu.mx" autocomplete="email"/>
+  </div>
+
+  <!-- Contraseña -->
+  <div class="field">
+    <label>Contraseña</label>
+    <input id="pass" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    <div class="strength" id="strength" style="display:none">
+      <div class="strength-bar"><div class="strength-fill" id="sFill"></div></div>
+      <div class="strength-txt" id="sTxt"></div>
+    </div>
+  </div>
+
+  <!-- Confirmar (solo registro) -->
+  <div class="field reg-only" id="fConf">
+    <label>Confirmar Contraseña</label>
+    <input id="conf" type="password" placeholder="••••••••" autocomplete="new-password"/>
+  </div>
+
+  <!-- Botón -->
+  <button class="btn" id="btn">
+    <span id="btnTxt">Entrar al Portal</span>
+    <div class="spin" id="spin"></div>
+  </button>
+
+  <!-- Hint -->
+  <p class="hint" id="hint">
+    ¿No tienes cuenta? <span onclick="setMode('reg')">Crear cuenta nueva</span>
+  </p>
 </div>
+
 <script type="module">
 import { createClient } from '@supabase/supabase-js';
+
 const sb = createClient(
   'https://ivmakshnjjgyjxytviqp.supabase.co',
   'sb_publishable_G5Z7F_qeyg_D0RgGHFHJKw_X_lPJDX7'
 );
 
-// Si ya hay sesión, ir directo al panel
-const { data: { session } } = await sb.auth.getSession();
+/* Redirigir si ya hay sesión */
+const { data:{ session } } = await sb.auth.getSession();
 if (session) location.href = './app.html';
 
-const btn   = document.getElementById('btn');
-const txt   = document.getElementById('btnTxt');
-const errEl = document.getElementById('errBox');
+let MODE = 'login';
 
-function setLoading(on) {
-  btn.disabled = on;
-  txt.innerHTML = on ? '<div class="spin"></div> Verificando…' : 'Entrar al Portal';
-}
+const $ = id => document.getElementById(id);
 
-document.getElementById('pass').addEventListener('keydown', e => {
-  if (e.key === 'Enter') btn.click();
+/* ─── Helpers mensajes ─── */
+const showErr = msg => { hideMsg(); $('mErr').textContent = msg; $('mErr').classList.add('show'); };
+const showOk  = msg => { hideMsg(); $('mOk').textContent  = msg; $('mOk').classList.add('show'); };
+const hideMsg = ()  => { $('mErr').classList.remove('show'); $('mOk').classList.remove('show'); };
+
+/* ─── Loading ─── */
+const setLoading = on => {
+  $('btn').disabled = on;
+  $('spin').style.display = on ? 'block' : 'none';
+};
+
+/* ─── Switch modo ─── */
+window.setMode = mode => {
+  MODE = mode; hideMsg();
+  const isReg = mode === 'reg';
+
+  $('swL').classList.toggle('active', !isReg);
+  $('swR').classList.toggle('active',  isReg);
+
+  document.querySelectorAll('.reg-only').forEach(el => el.style.display = isReg ? 'block' : 'none');
+
+  $('sub').textContent    = isReg ? 'Crea tu cuenta docente TEBAM' : 'Accede con tu correo institucional';
+  $('btnTxt').textContent = isReg ? 'Crear Cuenta' : 'Entrar al Portal';
+  $('strength').style.display    = isReg ? 'block' : 'none';
+  $('pass').autocomplete  = isReg ? 'new-password' : 'current-password';
+  $('pass').placeholder   = isReg ? 'Mínimo 8 caracteres' : '••••••••';
+  $('hint').innerHTML     = isReg
+    ? '¿Ya tienes cuenta? <span onclick="setMode(\'login\')">Iniciar sesión</span>'
+    : '¿No tienes cuenta? <span onclick="setMode(\'reg\')">Crear cuenta nueva</span>';
+};
+
+/* ─── Fortaleza contraseña ─── */
+$('pass').addEventListener('input', () => {
+  if (MODE !== 'reg') return;
+  const v = $('pass').value;
+  let s = 0;
+  if (v.length >= 8)  s++;
+  if (v.length >= 12) s++;
+  if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  s = Math.min(s, 4);
+  const cols  = ['#e05a4e','#e05a4e','#f1e640','#f1e640','#72c96f'];
+  const texts = ['Muy débil','Débil','Regular','Buena','Fuerte ✓'];
+  $('sFill').style.cssText = `width:${(s/4)*100}%; background:${cols[s]}`;
+  $('sTxt').textContent = v.length ? texts[s] : '';
 });
 
-btn.addEventListener('click', async () => {
-  errEl.classList.remove('show');
-  const email = document.getElementById('email').value.trim();
-  const pass  = document.getElementById('pass').value;
-  if (!email || !pass) { errEl.textContent = 'Completa todos los campos.'; errEl.classList.add('show'); return; }
-  setLoading(true);
-  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
-  if (error) {
-    const msgs = { 'Invalid login credentials':'Correo o contraseña incorrectos.','Email not confirmed':'Confirma tu correo antes de entrar.' };
-    errEl.textContent = msgs[error.message] || 'Error al iniciar sesión.';
-    errEl.classList.add('show');
-    setLoading(false);
+/* ─── Enter ─── */
+document.querySelectorAll('input').forEach(i =>
+  i.addEventListener('keydown', e => { if (e.key === 'Enter') $('btn').click(); })
+);
+
+/* ─── Acción principal ─── */
+$('btn').addEventListener('click', async () => {
+  hideMsg();
+  const email = $('email').value.trim();
+  const pass  = $('pass').value;
+  if (!email || !pass) { showErr('Completa todos los campos.'); return; }
+
+  if (MODE === 'login') {
+    /* LOGIN */
+    setLoading(true);
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      const map = {
+        'Invalid login credentials': 'Correo o contraseña incorrectos.',
+        'Email not confirmed':        'Confirma tu correo antes de entrar.',
+        'Too many requests':          'Demasiados intentos. Espera unos minutos.',
+      };
+      showErr(map[error.message] || error.message);
+      setLoading(false);
+    } else {
+      location.href = './app.html';
+    }
+
   } else {
-    location.href = './app.html';
+    /* REGISTRO */
+    const nombre = $('nombre').value.trim();
+    const conf   = $('conf').value;
+
+    if (!nombre)            { showErr('Escribe tu nombre completo.'); return; }
+    if (pass.length < 8)    { showErr('La contraseña debe tener mínimo 8 caracteres.'); return; }
+    if (pass !== conf)      { showErr('Las contraseñas no coinciden.'); return; }
+
+    setLoading(true);
+
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: { nombre },
+        emailRedirectTo: 'https://tebam-calificaciones.pages.dev/app.html',
+      },
+    });
+
+    if (error) {
+      const map = {
+        'User already registered': 'Este correo ya tiene cuenta. Inicia sesión.',
+        'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres.',
+      };
+      showErr(map[error.message] || error.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data.session) {
+      /* Auto-confirm activo → entrar directo */
+      location.href = './app.html';
+    } else {
+      /* Requiere confirmación por correo */
+      showOk('✓ Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.');
+      setLoading(false);
+      setMode('login');
+      $('email').value = email;
+    }
   }
 });
 </script>
