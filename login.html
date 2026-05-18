@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TEBAM Digital — Acceso</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script type="importmap">{"imports":{"@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"}}</script>
+  <style>
+    :root{--gd:#1a2010;--gm:#2e3618;--gl:#404d20;--y:#f1e640;--gr:#7a8560;--grl:#b8c49a;--w:#edeee8;--err:#e05a4e}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',sans-serif;background:var(--gd);height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{background:linear-gradient(160deg,var(--gl),var(--gm));border:1px solid rgba(241,230,64,.18);border-radius:20px;padding:40px 36px;width:380px;max-width:95vw;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+    .brand{font-size:10px;letter-spacing:.14em;color:var(--gr);text-transform:uppercase;margin-bottom:5px}
+    h1{font-size:26px;font-weight:700;color:var(--y);margin-bottom:3px;letter-spacing:-.3px}
+    .sub{font-size:13px;color:var(--grl);margin-bottom:32px}
+    .field{margin-bottom:14px}
+    label{display:block;font-size:11px;font-weight:600;color:var(--grl);margin-bottom:5px;letter-spacing:.04em}
+    input{width:100%;padding:10px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.25);color:var(--w);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:.15s}
+    input:focus{border-color:var(--y)}
+    input::placeholder{color:var(--gr)}
+    .btn{width:100%;padding:13px;background:var(--y);color:var(--gd);border:none;border-radius:9px;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+    .btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .err-box{background:rgba(224,90,78,.12);color:var(--err);border:1px solid rgba(224,90,78,.25);border-radius:8px;padding:9px 13px;font-size:13px;margin-bottom:14px;display:none}
+    .err-box.show{display:block}
+    .spin{width:16px;height:16px;border:2px solid var(--gd);border-top-color:transparent;border-radius:50%;animation:s .6s linear infinite}
+    @keyframes s{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">Telebachillerato de Michoacán</div>
+  <h1>TEBAM Digital</h1>
+  <p class="sub">Accede con tu correo institucional</p>
+  <div class="err-box" id="errBox"></div>
+  <div class="field"><label>Correo Institucional</label><input id="email" type="email" placeholder="usuario@tebam.edu.mx" autocomplete="email" /></div>
+  <div class="field"><label>Contraseña</label><input id="pass" type="password" placeholder="••••••••" autocomplete="current-password" /></div>
+  <button class="btn" id="btn"><span id="btnTxt">Entrar al Portal</span></button>
+</div>
+<script type="module">
+import { createClient } from '@supabase/supabase-js';
+const sb = createClient(
+  'https://ivmakshnjjgyjxytviqp.supabase.co',
+  'sb_publishable_G5Z7F_qeyg_D0RgGHFHJKw_X_lPJDX7'
+);
+
+// Si ya hay sesión, ir directo al panel
+const { data: { session } } = await sb.auth.getSession();
+if (session) location.href = './app.html';
+
+const btn   = document.getElementById('btn');
+const txt   = document.getElementById('btnTxt');
+const errEl = document.getElementById('errBox');
+
+function setLoading(on) {
+  btn.disabled = on;
+  txt.innerHTML = on ? '<div class="spin"></div> Verificando…' : 'Entrar al Portal';
+}
+
+document.getElementById('pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') btn.click();
+});
+
+btn.addEventListener('click', async () => {
+  errEl.classList.remove('show');
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('pass').value;
+  if (!email || !pass) { errEl.textContent = 'Completa todos los campos.'; errEl.classList.add('show'); return; }
+  setLoading(true);
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    const msgs = { 'Invalid login credentials':'Correo o contraseña incorrectos.','Email not confirmed':'Confirma tu correo antes de entrar.' };
+    errEl.textContent = msgs[error.message] || 'Error al iniciar sesión.';
+    errEl.classList.add('show');
+    setLoading(false);
+  } else {
+    location.href = './app.html';
+  }
+});
+</script>
+</body>
+</html>
