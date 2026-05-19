@@ -176,6 +176,40 @@
     ::-webkit-scrollbar{width:5px;height:5px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--gl);border-radius:3px}
+
+    /* ── CSV IMPORT ── */
+    .dropzone{
+      border:2px dashed rgba(241,230,64,.25);border-radius:12px;
+      padding:32px 20px;text-align:center;cursor:pointer;
+      transition:.2s;background:rgba(0,0,0,.15);
+    }
+    .dropzone:hover,.dropzone.drag{border-color:var(--y);background:var(--yd)}
+    .dropzone input[type=file]{display:none}
+    .dropzone-ico{font-size:32px;margin-bottom:8px}
+    .dropzone-txt{font-size:13px;color:var(--grl);line-height:1.5}
+    .dropzone-hint{font-size:11px;color:var(--gr);margin-top:4px}
+
+    .csv-preview{margin-top:16px;max-height:220px;overflow-y:auto;border-radius:9px;border:1px solid rgba(255,255,255,.06)}
+    .csv-preview table{width:100%;border-collapse:collapse;font-size:12px}
+    .csv-preview th{background:var(--gl);padding:8px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--grl);position:sticky;top:0}
+    .csv-preview td{padding:7px 12px;border-top:1px solid rgba(255,255,255,.04)}
+    .csv-preview tr:hover td{background:rgba(241,230,64,.03)}
+    .csv-row-ok td:first-child::before{content:'✓ ';color:var(--ok)}
+    .csv-row-err{opacity:.5}
+    .csv-row-err td:first-child::before{content:'✗ ';color:var(--err)}
+
+    .csv-stats{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .csv-stat{padding:6px 13px;border-radius:20px;font-size:12px;font-weight:600}
+    .csv-stat-ok {background:rgba(114,201,111,.12);color:var(--ok)}
+    .csv-stat-err{background:rgba(224,90,78,.12);color:var(--err)}
+    .csv-stat-tot{background:var(--yd);color:var(--y)}
+
+    .csv-map{margin-top:14px}
+    .csv-map-title{font-size:11px;color:var(--grl);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+    .csv-map-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px}
+    .csv-map-label{width:110px;color:var(--gr);flex-shrink:0}
+    .csv-map-sel{flex:1;padding:7px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.2);color:var(--w);font-family:var(--font);font-size:12px;outline:none}
+    .csv-map-sel:focus{border-color:var(--y)}
   </style>
 </head>
 <body>
@@ -241,6 +275,7 @@
         <div><div class="det-title" id="detTitle">—</div><div class="det-cycle" id="detCycle">—</div></div>
         <div class="det-actions">
           <button class="btn btn-g btn-sm" onclick="openModal('mAlumno')">+ Alumno</button>
+          <button class="btn btn-g btn-sm" onclick="openModal('mCSV')">📋 Importar CSV</button>
           <button class="btn btn-g btn-sm" onclick="openModal('mActividad')">+ Actividad</button>
         </div>
       </div>
@@ -312,6 +347,59 @@
   </div>
 </div>
 
+<!-- ── MODAL: IMPORTAR CSV ── -->
+<div class="overlay" id="mCSV">
+  <div class="modal" style="width:520px;max-width:96vw">
+    <div class="modal-title">📋 Importar Lista de Alumnos</div>
+
+    <!-- Paso 1: Drop zone -->
+    <div id="csvStep1">
+      <div class="dropzone" id="dropzone" onclick="$('csvFile').click()">
+        <div class="dropzone-ico">📄</div>
+        <div class="dropzone-txt">Arrastra tu archivo CSV aquí<br>o haz clic para seleccionar</div>
+        <div class="dropzone-hint">Formatos: .csv · .txt · separado por comas o punto y coma</div>
+        <input type="file" id="csvFile" accept=".csv,.txt" />
+      </div>
+
+      <!-- Plantilla descargable -->
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+        <span style="font-size:12px;color:var(--gr)">¿Sin archivo? Descarga la plantilla:</span>
+        <button class="btn btn-g btn-sm" onclick="descargarPlantilla()">⬇ Plantilla.csv</button>
+      </div>
+    </div>
+
+    <!-- Paso 2: Mapeo de columnas + preview -->
+    <div id="csvStep2" style="display:none">
+      <div class="csv-map">
+        <div class="csv-map-title">Mapeo de columnas</div>
+        <div class="csv-map-row">
+          <span class="csv-map-label">Nombre alumno</span>
+          <select class="csv-map-sel" id="mapNombre"></select>
+        </div>
+        <div class="csv-map-row">
+          <span class="csv-map-label">Número de lista</span>
+          <select class="csv-map-sel" id="mapNumero"></select>
+        </div>
+      </div>
+
+      <div class="csv-stats" id="csvStats"></div>
+
+      <div class="csv-preview" id="csvPreview"></div>
+
+      <div style="margin-top:14px;padding:10px 13px;border-radius:8px;background:var(--yd);font-size:12px;color:var(--grl)">
+        ⚠️ Los alumnos duplicados (mismo nombre) serán ignorados automáticamente.
+      </div>
+    </div>
+
+    <div class="modal-acts" style="margin-top:18px">
+      <button class="btn btn-g" onclick="resetCSV()">Cancelar</button>
+      <button class="btn btn-y" id="csvImportBtn" style="display:none" onclick="importarCSV()">
+        ⬆ Importar Alumnos
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script type="module">
@@ -370,6 +458,183 @@ window.doLogin = async () => {
 window.doLogout = async () => {
   await sb.auth.signOut();
   location.reload();
+};
+
+/* ─────────────── CSV IMPORT ─────────────── */
+let csvRows    = [];   // todas las filas parseadas
+let csvHeaders = [];   // encabezados detectados
+
+/* Drag & drop sobre la dropzone */
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', ()  => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) procesarCSV(file);
+});
+document.getElementById('csvFile').addEventListener('change', e => {
+  if (e.target.files[0]) procesarCSV(e.target.files[0]);
+});
+
+function procesarCSV(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const text = e.target.result;
+    const parsed = parseCSV(text);
+    if (!parsed.rows.length) { toast('El archivo está vacío o no es válido', true); return; }
+    csvHeaders = parsed.headers;
+    csvRows    = parsed.rows;
+    mostrarMapeo();
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+/* Parser CSV robusto: detecta separador , o ; */
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return { headers: [], rows: [] };
+
+  // Detectar separador
+  const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+
+  const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+  const rows = lines.slice(1).map(line => {
+    const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = vals[i] ?? ''; });
+    return obj;
+  }).filter(r => Object.values(r).some(v => v));
+
+  return { headers, rows };
+}
+
+function mostrarMapeo() {
+  $('csvStep1').style.display = 'none';
+  $('csvStep2').style.display = 'block';
+  $('csvImportBtn').style.display = 'inline-flex';
+
+  // Poblar selects de mapeo
+  const opciones = ['(ninguna)', ...csvHeaders]
+    .map(h => `<option value="${h}">${h}</option>`).join('');
+
+  $('mapNombre').innerHTML = opciones;
+  $('mapNumero').innerHTML = opciones;
+
+  // Auto-detectar columnas comunes
+  const autoNombre = csvHeaders.find(h => /nombre|name|alumno|student/i.test(h)) || csvHeaders[0];
+  const autoNumero = csvHeaders.find(h => /num|lista|no\.|#|numero/i.test(h)) || '(ninguna)';
+  $('mapNombre').value = autoNombre;
+  $('mapNumero').value = autoNumero;
+
+  // Escuchar cambios en el mapeo para re-preview
+  $('mapNombre').addEventListener('change', actualizarPreview);
+  $('mapNumero').addEventListener('change', actualizarPreview);
+
+  actualizarPreview();
+}
+
+function actualizarPreview() {
+  const colNombre = $('mapNombre').value;
+  const colNumero = $('mapNumero').value;
+
+  const existentes = new Set(cache.alumnos.map(a => a.nombre.toLowerCase().trim()));
+
+  let ok = 0, dupes = 0;
+
+  const filas = csvRows.map((row, i) => {
+    const nombre = row[colNombre]?.trim() || '';
+    const numero = colNumero !== '(ninguna)' ? row[colNumero]?.trim() : '';
+    const isDupe = !nombre || existentes.has(nombre.toLowerCase());
+    if (isDupe) dupes++; else ok++;
+    return { nombre, numero, isDupe, idx: i };
+  });
+
+  // Stats
+  $('csvStats').innerHTML = `
+    <span class="csv-stat csv-stat-tot">Total: ${filas.length}</span>
+    <span class="csv-stat csv-stat-ok">✓ Nuevos: ${ok}</span>
+    ${dupes ? `<span class="csv-stat csv-stat-err">✗ Duplicados/vacíos: ${dupes}</span>` : ''}
+  `;
+
+  // Preview tabla (máx 50 filas)
+  const preview = filas.slice(0, 50);
+  $('csvPreview').innerHTML = `
+    <table>
+      <thead><tr><th>#</th><th>Nombre</th>${colNumero !== '(ninguna)' ? '<th>No. Lista</th>' : ''}<th>Estado</th></tr></thead>
+      <tbody>
+        ${preview.map(f => `
+          <tr class="${f.isDupe ? 'csv-row-err' : 'csv-row-ok'}">
+            <td style="color:var(--gr);font-family:var(--mono)">${f.idx + 1}</td>
+            <td>${f.nombre || '<em style="color:var(--gr)">vacío</em>'}</td>
+            ${colNumero !== '(ninguna)' ? `<td style="font-family:var(--mono)">${f.numero}</td>` : ''}
+            <td>${f.isDupe ? '<span style="color:var(--err);font-size:11px">Duplicado</span>' : '<span style="color:var(--ok);font-size:11px">Nuevo</span>'}</td>
+          </tr>`).join('')}
+        ${filas.length > 50 ? `<tr><td colspan="4" style="text-align:center;color:var(--gr);padding:10px">...y ${filas.length - 50} más</td></tr>` : ''}
+      </tbody>
+    </table>`;
+}
+
+async function importarCSV() {
+  const colNombre = $('mapNombre').value;
+  const colNumero = $('mapNumero').value;
+
+  const existentes = new Set(cache.alumnos.map(a => a.nombre.toLowerCase().trim()));
+
+  const nuevos = csvRows
+    .map((row, i) => ({
+      nombre: row[colNombre]?.trim() || '',
+      numero: colNumero !== '(ninguna)' ? parseInt(row[colNumero]) || null : null,
+      idx: i + 1
+    }))
+    .filter(r => r.nombre && !existentes.has(r.nombre.toLowerCase()));
+
+  if (!nuevos.length) { toast('No hay alumnos nuevos para importar', true); return; }
+
+  $('csvImportBtn').disabled = true;
+  $('csvImportBtn').textContent = 'Importando…';
+
+  // Insertar en lotes de 50
+  const lotes = [];
+  for (let i = 0; i < nuevos.length; i += 50) lotes.push(nuevos.slice(i, i + 50));
+
+  let insertados = 0;
+  for (const lote of lotes) {
+    const rows = lote.map(a => ({
+      materia_id:   CUR_MATERIA.id,
+      nombre:       a.nombre,
+      numero_lista: a.numero,
+    }));
+    const { data, error } = await sb.from('alumnos').insert(rows).select();
+    if (error) { toast('Error al insertar: ' + error.message, true); break; }
+    cache.alumnos.push(...(data || []));
+    insertados += data?.length || 0;
+  }
+
+  resetCSV();
+  toast(`✓ ${insertados} alumnos importados correctamente`);
+  renderGradebook();
+}
+
+function resetCSV() {
+  csvRows = []; csvHeaders = [];
+  $('csvStep1').style.display = 'block';
+  $('csvStep2').style.display = 'none';
+  $('csvImportBtn').style.display = 'none';
+  $('csvImportBtn').disabled = false;
+  $('csvImportBtn').textContent = '⬆ Importar Alumnos';
+  $('csvFile').value = '';
+  closeModal('mCSV');
+}
+
+/* Genera y descarga la plantilla CSV */
+window.descargarPlantilla = () => {
+  const content = 'numero_lista,nombre\n1,García López Juan\n2,Martínez Torres Ana\n3,Hernández Reyes Pedro';
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'plantilla_alumnos_TEBAM.csv';
+  a.click(); URL.revokeObjectURL(url);
 };
 
 /* ─────────────── INIT ─────────────── */
