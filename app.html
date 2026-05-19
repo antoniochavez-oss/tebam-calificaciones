@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TEBAM Digital — Panel Docente</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1a2010" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TEBAM" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <script type="importmap">
   {
     "imports": {
@@ -176,6 +184,27 @@
     ::-webkit-scrollbar{width:5px;height:5px}
     ::-webkit-scrollbar-track{background:transparent}
     ::-webkit-scrollbar-thumb{background:var(--gl);border-radius:3px}
+
+    /* ── PWA INSTALL BANNER ── */
+    .install-banner{
+      position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);
+      background:var(--gm);border:1px solid var(--yg);border-radius:14px;
+      padding:14px 18px;display:flex;align-items:center;gap:14px;
+      box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:150;
+      transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+      width:calc(100% - 40px);max-width:420px;
+    }
+    .install-banner.show{transform:translateX(-50%) translateY(0)}
+    .install-ico{font-size:28px;flex-shrink:0}
+    .install-txt{flex:1}
+    .install-txt strong{display:block;font-size:14px;font-weight:700;margin-bottom:2px}
+    .install-txt span{font-size:12px;color:var(--grl)}
+    .btn-install{background:var(--y);color:var(--gd);border:none;border-radius:8px;
+      padding:8px 14px;font-family:var(--font);font-size:13px;font-weight:700;
+      cursor:pointer;white-space:nowrap;flex-shrink:0}
+    .btn-dismiss{background:none;border:none;color:var(--gr);cursor:pointer;
+      font-size:18px;padding:4px;flex-shrink:0;line-height:1}
+    .btn-dismiss:hover{color:var(--w)}
 
     /* ── CSV IMPORT ── */
     .dropzone{
@@ -398,6 +427,17 @@
       </button>
     </div>
   </div>
+</div>
+
+<!-- ── PWA INSTALL BANNER ── -->
+<div class="install-banner" id="installBanner" style="display:none">
+  <div class="install-ico">📱</div>
+  <div class="install-txt">
+    <strong>Instalar TEBAM Digital</strong>
+    <span>Accede más rápido desde tu pantalla de inicio</span>
+  </div>
+  <button class="btn-install" id="installBtn">Instalar</button>
+  <button class="btn-dismiss" id="installDismiss" title="Cerrar">✕</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1065,6 +1105,51 @@ function showView(id) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   $(id).classList.add('active');
 }
+
+/* ─────────────── PWA ─────────────── */
+// Registrar Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[SW] Registrado:', reg.scope))
+      .catch(err => console.warn('[SW] Error:', err));
+  });
+}
+
+// Banner de instalación (A2HS)
+let deferredPrompt = null;
+const installBanner = document.getElementById('installBanner');
+const installBtn    = document.getElementById('installBtn');
+const installDismiss= document.getElementById('installDismiss');
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Mostrar banner solo si no fue descartado antes
+  if (!localStorage.getItem('pwa-dismissed')) {
+    installBanner.style.display = 'flex';
+    setTimeout(() => installBanner.classList.add('show'), 100);
+  }
+});
+
+installBtn?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  if (outcome === 'accepted') toast('✓ TEBAM instalada correctamente');
+  deferredPrompt = null;
+  installBanner.classList.remove('show');
+});
+
+installDismiss?.addEventListener('click', () => {
+  installBanner.classList.remove('show');
+  localStorage.setItem('pwa-dismissed', '1');
+});
+
+window.addEventListener('appinstalled', () => {
+  toast('✓ App instalada. Búscala en tu pantalla de inicio');
+  installBanner.style.display = 'none';
+});
 
 /* ─────────────── START ─────────────── */
 init();

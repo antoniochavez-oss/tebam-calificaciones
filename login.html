@@ -5,6 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TEBAM Digital — Acceso</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1a2010" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TEBAM" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <script type="importmap">{"imports":{"@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"}}</script>
   <style>
     :root{
@@ -179,6 +187,14 @@ const sb = createClient(
   'https://ivmakshnjjgyjxytviqp.supabase.co',
   'sb_publishable_G5Z7F_qeyg_D0RgGHFHJKw_X_lPJDX7'
 );
+
+/* Registrar Service Worker */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .catch(err => console.warn('[SW]', err));
+  });
+}
 
 /* Redirigir si ya hay sesión */
 const { data:{ session } } = await sb.auth.getSession();

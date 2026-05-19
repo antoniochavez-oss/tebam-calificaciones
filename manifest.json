@@ -1,0 +1,35 @@
+{
+  "name": "TEBAM Digital",
+  "short_name": "TEBAM",
+  "description": "Sistema escolar docente — Telebachillerato de Michoacán",
+  "start_url": "/login.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a2010",
+  "theme_color": "#1a2010",
+  "lang": "es-MX",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mis Asignaturas",
+      "short_name": "Asignaturas",
+      "url": "/app.html",
+      "description": "Ir al panel de asignaturas"
+    }
+  ],
+  "categories": ["education", "productivity"]
+}
