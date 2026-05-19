@@ -354,7 +354,7 @@
 
     <!-- Paso 1: Drop zone -->
     <div id="csvStep1">
-      <div class="dropzone" id="dropzone" onclick="$('csvFile').click()">
+      <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFile').click()">
         <div class="dropzone-ico">📄</div>
         <div class="dropzone-txt">Arrastra tu archivo CSV aquí<br>o haz clic para seleccionar</div>
         <div class="dropzone-hint">Formatos: .csv · .txt · separado por comas o punto y coma</div>
@@ -615,6 +615,7 @@ async function importarCSV() {
   toast(`✓ ${insertados} alumnos importados correctamente`);
   renderGradebook();
 }
+window.importarCSV = importarCSV;
 
 function resetCSV() {
   csvRows = []; csvHeaders = [];
@@ -626,6 +627,7 @@ function resetCSV() {
   $('csvFile').value = '';
   closeModal('mCSV');
 }
+window.resetCSV = resetCSV;
 
 /* Genera y descarga la plantilla CSV */
 window.descargarPlantilla = () => {
