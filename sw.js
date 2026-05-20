@@ -1,5 +1,5 @@
-// ─── TEBAM Digital — Service Worker ──────────────────────────
-const VERSION   = 'tebam-v2';
+// ─── TEBAM Digital — Service Worker v3 ───────────────────────
+const VERSION   = 'tebam-v3';
 const CACHE_KEY = `${VERSION}-static`;
 
 const PRECACHE = [
@@ -7,8 +7,8 @@ const PRECACHE = [
   '/app.html',
   '/index.html',
   '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // ── INSTALL ──────────────────────────────────────────────────
@@ -20,7 +20,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── ACTIVATE ─────────────────────────────────────────────────
+// ── ACTIVATE: limpiar caches viejos ──────────────────────────
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -35,34 +35,32 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Ignorar: no-GET, extensiones Chrome, supabase, CDN externos
+  // Ignorar todo lo que no sea GET
   if (event.request.method !== 'GET') return;
-  if (event.request.url.startsWith('chrome-extension://')) return;
-  if (url.hostname.includes('supabase.co'))   return;
-  if (url.hostname.includes('googleapis.com')) return;
-  if (url.hostname.includes('gstatic.com'))   return;
-  if (url.hostname.includes('jsdelivr.net'))  return;
 
-  // Solo manejar recursos del mismo origen
+  // Ignorar extensiones del navegador
+  if (!url.protocol.startsWith('http')) return;
+
+  // Ignorar peticiones externas (Supabase, CDN, Fonts)
   if (url.origin !== self.location.origin) return;
 
   event.respondWith(
-    caches.match(event.request)
-      .then(cached => {
-        if (cached) return cached;
+    caches.match(event.request).then(cached => {
+      if (cached) return cached;
 
-        // Fetch con redirect: 'follow' para evitar el error
-        return fetch(event.request, { redirect: 'follow' })
-          .then(response => {
-            // No cachear respuestas no exitosas o redirecciones opacas
-            if (!response || response.status !== 200 || response.type === 'opaqueredirect') {
-              return response;
-            }
-            const clone = response.clone();
-            caches.open(CACHE_KEY).then(cache => cache.put(event.request, clone));
-            return response;
-          })
-          .catch(() => caches.match('/app.html'));
-      })
+      return fetch(event.request).then(response => {
+        // Solo cachear respuestas exitosas del mismo origen
+        if (response.status === 200 && response.type === 'basic') {
+          const clone = response.clone();
+          caches.open(CACHE_KEY).then(c => c.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        // Offline fallback
+        if (event.request.destination === 'document') {
+          return caches.match('/app.html');
+        }
+      });
+    })
   );
 });
