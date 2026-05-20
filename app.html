@@ -1107,12 +1107,10 @@ function showView(id) {
 }
 
 /* ─────────────── PWA ─────────────── */
-// Registrar Service Worker
+// Desregistrar cualquier Service Worker previo
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('[SW] Registrado:', reg.scope))
-      .catch(err => console.warn('[SW] Error:', err));
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
   });
 }
 

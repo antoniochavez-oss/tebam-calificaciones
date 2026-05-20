@@ -188,11 +188,10 @@ const sb = createClient(
   'sb_publishable_G5Z7F_qeyg_D0RgGHFHJKw_X_lPJDX7'
 );
 
-/* Registrar Service Worker */
+/* Desregistrar Service Worker previo */
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .catch(err => console.warn('[SW]', err));
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => r.unregister());
   });
 }
 
