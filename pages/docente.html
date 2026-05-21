@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TEBAM Digital — Docente</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a2010"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabase.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/ui.js"></script>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-brand">Telebachillerato Michoacán</div>
+    <div class="sb-title">TEBAM Digital</div>
+    <div class="sb-subtitle">Portal Docente</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Panel</div>
+    <div class="nav-item active" id="nav-ciclos" onclick="navTo('ciclos')"><span class="ico">🗓️</span> Ciclos Escolares</div>
+    <div class="sb-sec">Contexto actual</div>
+    <div class="nav-item" id="nav-grupos"   style="display:none" onclick="navTo('grupos')">  <span class="ico">👥</span> <span id="nav-grupos-lbl">Grupos</span></div>
+    <div class="nav-item" id="nav-materias" style="display:none" onclick="navTo('materias')"><span class="ico">📚</span> <span id="nav-materias-lbl">Materias</span></div>
+    <div class="sb-sec">Herramientas</div>
+    <div class="nav-item" id="nav-comunicados" style="display:none" onclick="navTo('comunicados')"><span class="ico">📢</span> Comunicados</div>
+  </nav>
+  <div class="sb-foot">
+    <div class="user-avatar">P</div>
+    <div>
+      <div class="sb-user-name user-name">—</div>
+      <div class="sb-user-rol user-rol">Docente · TEBAM</div>
+    </div>
+    <button class="btn-logout" onclick="Auth.logout()" title="Cerrar sesión">⎋</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="crumb" id="crumb"><span class="crumb-cur">Ciclos Escolares</span></div>
+    <div id="topbarR"><button class="btn btn-y" onclick="UI.openModal('mCiclo')">+ Nuevo Ciclo</button></div>
+  </div>
+  <div class="content">
+
+    <!-- CICLOS -->
+    <div class="view active" id="view-ciclos">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Mis Ciclos Escolares</div><div class="sec-sub">Selecciona un ciclo para gestionar sus grupos</div></div>
+      </div>
+      <div class="loader" id="ciclosLoader"><div class="spinner"></div><span>Cargando…</span></div>
+      <div class="grid" id="ciclosGrid" style="display:none"></div>
+    </div>
+
+    <!-- GRUPOS -->
+    <div class="view" id="view-grupos">
+      <div class="sec-hdr">
+        <div><div class="sec-title" id="gruposTitle">Grupos</div><div class="sec-sub" id="gruposSub"></div></div>
+      </div>
+      <div class="loader" id="gruposLoader" style="display:none"><div class="spinner"></div><span>Cargando…</span></div>
+      <div class="grid" id="gruposGrid"></div>
+    </div>
+
+    <!-- MATERIAS -->
+    <div class="view" id="view-materias">
+      <div class="sec-hdr">
+        <div><div class="sec-title" id="materiasTitle">Asignaturas</div><div class="sec-sub" id="materiasSub"></div></div>
+      </div>
+      <div class="loader" id="materiasLoader" style="display:none"><div class="spinner"></div><span>Cargando…</span></div>
+      <div class="grid" id="materiasGrid"></div>
+    </div>
+
+    <!-- DETALLE MATERIA -->
+    <div class="view" id="view-detail">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:22px;flex-wrap:wrap">
+        <button class="btn btn-g btn-sm" onclick="navTo('materias')">← Volver</button>
+        <div>
+          <div style="font-size:20px;font-weight:700" id="detTitle">—</div>
+          <div style="font-size:12px;color:var(--gr)" id="detSub">—</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
+          <button class="btn btn-g btn-sm" onclick="UI.openModal('mAlumno')">+ Alumno</button>
+          <button class="btn btn-g btn-sm" onclick="UI.openModal('mCSV')">📋 CSV</button>
+          <button class="btn btn-g btn-sm" onclick="UI.openModal('mActividad')">+ Actividad</button>
+          <button class="btn btn-g btn-sm" onclick="UI.openModal('mComunicado')">📢 Comunicado</button>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab active" data-tab="cal">Calificaciones</div>
+        <div class="tab" data-tab="asis">Asistencia</div>
+        <div class="tab" data-tab="acts">Actividades</div>
+        <div class="tab" data-tab="rep">Reporte</div>
+        <div class="tab" data-tab="com">Comunicados</div>
+      </div>
+      <div id="tab-cal"></div>
+      <div id="tab-asis" style="display:none"></div>
+      <div id="tab-acts" style="display:none"></div>
+      <div id="tab-rep"  style="display:none"></div>
+      <div id="tab-com"  style="display:none"></div>
+    </div>
+
+    <!-- COMUNICADOS vista general -->
+    <div class="view" id="view-comunicados">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Comunicados</div><div class="sec-sub" id="comunicadosSub"></div></div>
+      </div>
+      <div id="comunicadosList"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- ── MODALES ── -->
+<div class="overlay" id="mCiclo"><div class="modal">
+  <div class="modal-title">Nuevo Ciclo Escolar</div>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="cNom" placeholder="ej. 2026-2027"/></div>
+  <div class="form-row">
+    <div class="field"><label class="lbl">Inicio</label><input class="inp" type="date" id="cIni"/></div>
+    <div class="field"><label class="lbl">Fin</label><input class="inp" type="date" id="cFin"/></div>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mCiclo')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearCiclo()">Crear</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mGrupo"><div class="modal">
+  <div class="modal-title">Nuevo Grupo</div>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="gNom" placeholder="ej. 1°A, 2°B"/></div>
+  <div class="form-row">
+    <div class="field"><label class="lbl">Turno</label>
+      <select class="sel" id="gTurno">
+        <option value="matutino">Matutino</option>
+        <option value="vespertino">Vespertino</option>
+        <option value="nocturno">Nocturno</option>
+      </select>
+    </div>
+    <div class="field"><label class="lbl">Descripción</label><input class="inp" id="gDesc" placeholder="Opcional"/></div>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mGrupo')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearGrupo()">Crear</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mMateria"><div class="modal">
+  <div class="modal-title">Nueva Asignatura</div>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="mNom" placeholder="ej. Matemáticas I"/></div>
+  <div class="field"><label class="lbl">Estado</label>
+    <select class="sel" id="mEst"><option value="ACTIVA">Activa</option><option value="INACTIVA">Inactiva</option></select>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mMateria')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearMateria()">Crear</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mAlumno"><div class="modal">
+  <div class="modal-title">Agregar Alumno</div>
+  <div class="field"><label class="lbl">Nombre Completo</label><input class="inp" id="aNom" placeholder="Apellido Apellido, Nombre"/></div>
+  <div class="field"><label class="lbl">Número de Lista</label><input class="inp" id="aNum" type="number" min="1"/></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mAlumno')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearAlumno()">Agregar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mActividad"><div class="modal">
+  <div class="modal-title">Nueva Actividad</div>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="acNom" placeholder="ej. Examen Parcial 1"/></div>
+  <div class="form-row">
+    <div class="field"><label class="lbl">Tipo</label>
+      <select class="sel" id="acTipo">
+        <option value="tarea">📝 Tarea</option>
+        <option value="examen">📖 Examen</option>
+        <option value="participacion">🗣️ Participación</option>
+        <option value="proyecto">🔬 Proyecto</option>
+        <option value="rubrica">📊 Rúbrica</option>
+      </select>
+    </div>
+    <div class="field"><label class="lbl">Valor (pts)</label><input class="inp" type="number" id="acValor" value="10" min="1"/></div>
+  </div>
+  <div class="field"><label class="lbl">Fecha de entrega</label><input class="inp" type="date" id="acFecha"/></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mActividad')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearActividad()">Agregar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mComunicado"><div class="modal">
+  <div class="modal-title">📢 Nuevo Comunicado</div>
+  <div class="field"><label class="lbl">Título</label><input class="inp" id="comTitulo" placeholder="ej. Examen la próxima semana"/></div>
+  <div class="field"><label class="lbl">Mensaje</label>
+    <textarea class="inp" id="comContenido" rows="3" style="resize:vertical" placeholder="Escribe el mensaje…"></textarea>
+  </div>
+  <div class="field"><label class="lbl">Tipo</label>
+    <select class="sel" id="comTipo">
+      <option value="general">General</option>
+      <option value="tarea">Tarea</option>
+      <option value="urgente">🚨 Urgente</option>
+      <option value="evento">📅 Evento</option>
+    </select>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mComunicado')">Cancelar</button>
+    <button class="btn btn-y" onclick="crearComunicado()">Publicar</button>
+  </div>
+</div></div>
+
+<div class="overlay" id="mCSV"><div class="modal" style="width:500px;max-width:96vw">
+  <div class="modal-title">📋 Importar Lista de Alumnos</div>
+  <div id="csvStep1">
+    <div class="dropzone" id="dropzone" onclick="document.getElementById('csvFile').click()">
+      <div style="font-size:28px;margin-bottom:8px">📄</div>
+      <div style="font-size:13px;color:var(--grl)">Arrastra tu CSV aquí o haz clic</div>
+      <div style="font-size:11px;color:var(--gr);margin-top:4px">Separado por comas o punto y coma</div>
+      <input type="file" id="csvFile" accept=".csv,.txt"/>
+    </div>
+    <div style="margin-top:10px;display:flex;justify-content:flex-end">
+      <button class="btn btn-g btn-sm" onclick="UI.descargarPlantillaCSV()">⬇ Plantilla.csv</button>
+    </div>
+  </div>
+  <div id="csvStep2" style="display:none">
+    <div style="font-size:11px;color:var(--grl);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Mapeo de columnas</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="width:110px;color:var(--gr);font-size:13px">Nombre alumno</span>
+      <select class="sel" id="mapNombre" style="flex:1"></select>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="width:110px;color:var(--gr);font-size:13px">Número de lista</span>
+      <select class="sel" id="mapNumero" style="flex:1"></select>
+    </div>
+    <div class="csv-stats" id="csvStats"></div>
+    <div class="csv-preview" id="csvPreview"></div>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="resetCSV()">Cancelar</button>
+    <button class="btn btn-y" id="csvImportBtn" style="display:none" onclick="importarCSV()">⬆ Importar</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ ESTADO ══ */
+let CUR = { ciclo:null, grupo:null, materia:null };
+let CUR_TAB = 'cal', CUR_FECHA = new Date().toISOString().split('T')[0];
+let cache = { alumnos:[], actividades:[], califs:{}, asistencia:{} };
+let csvRows=[], csvHeaders=[], realtimeChannel=null;
+
+/* ══ INIT ══ */
+(async()=>{
+  UI.initModals();
+  const perfil = await Auth.init('docente');
+  if(!perfil) return;
+  await loadCiclos();
+})();
+
+/* ══ NAV ══ */
+async function navTo(view){
+  UI.showView('view-'+view);
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  if(view==='ciclos'){
+    document.getElementById('nav-ciclos').classList.add('active');
+    UI.setBreadcrumb([{label:'Ciclos Escolares'}]);
+    UI.setTopbar([{label:'+ Nuevo Ciclo',action:"UI.openModal('mCiclo')"}]);
+    CUR={ciclo:null,grupo:null,materia:null};
+    ['nav-grupos','nav-materias','nav-comunicados'].forEach(id=>document.getElementById(id).style.display='none');
+    await loadCiclos();
+  }
+  if(view==='grupos'){
+    document.getElementById('nav-grupos').classList.add('active');
+    UI.setBreadcrumb([{label:'Ciclos',action:"navTo('ciclos')"},{label:CUR.ciclo?.nombre}]);
+    UI.setTopbar([{label:'+ Nuevo Grupo',action:"UI.openModal('mGrupo')"}]);
+    await loadGrupos();
+  }
+  if(view==='materias'){
+    document.getElementById('nav-materias').classList.add('active');
+    UI.setBreadcrumb([{label:'Ciclos',action:"navTo('ciclos')"},{label:CUR.ciclo?.nombre,action:"navTo('grupos')"},{label:CUR.grupo?.nombre}]);
+    UI.setTopbar([{label:'+ Nueva Asignatura',action:"UI.openModal('mMateria')"}]);
+    await loadMaterias();
+  }
+  if(view==='comunicados'){
+    document.getElementById('nav-comunicados').classList.add('active');
+    UI.setBreadcrumb([{label:CUR.ciclo?.nombre,action:"navTo('grupos')"},{label:CUR.grupo?.nombre,action:"navTo('materias')"},{label:'Comunicados'}]);
+    UI.setTopbar([{label:'📢 Nuevo Comunicado',action:"UI.openModal('mComunicado')"}]);
+    await loadComunicados();
+  }
+}
+
+/* ══ CICLOS ══ */
+async function loadCiclos(){
+  UI.showLoader('ciclosLoader',true);
+  document.getElementById('ciclosGrid').style.display='none';
+  const ciclos=await DB.ciclos.listar();
+  UI.showLoader('ciclosLoader',false);
+  document.getElementById('ciclosGrid').style.display='grid';
+  const g=document.getElementById('ciclosGrid');
+  if(!ciclos.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🗓️</div><p>Sin ciclos. ¡Crea el primero!</p></div>`;return;}
+  g.innerHTML=ciclos.map(c=>`
+    <div class="card" onclick="abrirCiclo('${c.id}','${UI.esc(c.nombre)}')">
+      <div class="card-top">
+        <span class="badge ${c.activo?'badge-y':'badge-dim'}">${c.activo?'ACTIVO':'CERRADO'}</span>
+        <button class="card-del" onclick="event.stopPropagation();eliminarCiclo('${c.id}')">🗑</button>
+      </div>
+      <div class="card-name">${UI.esc(c.nombre)}</div>
+      <div class="card-sub">${c.fecha_inicio?c.fecha_inicio+' → '+c.fecha_fin:'Sin fechas'}</div>
+      <div class="card-stats"><span>📂 Ver grupos</span></div>
+    </div>`).join('');
+}
+async function abrirCiclo(id,nombre){
+  CUR.ciclo={id,nombre};
+  document.getElementById('nav-grupos').style.display='flex';
+  document.getElementById('nav-grupos-lbl').textContent=nombre;
+  await navTo('grupos');
+}
+async function crearCiclo(){
+  const nombre=document.getElementById('cNom').value.trim();
+  if(!nombre){UI.toast('Escribe el nombre','err');return;}
+  await DB.ciclos.crear({nombre,fecha_inicio:document.getElementById('cIni').value||null,fecha_fin:document.getElementById('cFin').value||null});
+  UI.closeModal('mCiclo');document.getElementById('cNom').value='';
+  UI.toast('Ciclo creado ✓');await loadCiclos();
+}
+async function eliminarCiclo(id){
+  if(!confirm('¿Eliminar este ciclo?'))return;
+  await DB.ciclos.eliminar(id);UI.toast('Eliminado');await loadCiclos();
+}
+
+/* ══ GRUPOS ══ */
+async function loadGrupos(){
+  UI.showLoader('gruposLoader',true);
+  const grupos=await DB.grupos.listarPorCiclo(CUR.ciclo.id);
+  UI.showLoader('gruposLoader',false);
+  document.getElementById('gruposTitle').textContent=`Grupos — ${CUR.ciclo.nombre}`;
+  document.getElementById('gruposSub').textContent='Selecciona un grupo para ver sus asignaturas';
+  const tBadge={matutino:'badge-y',vespertino:'badge-info',nocturno:'badge-dim'};
+  document.getElementById('gruposGrid').innerHTML=grupos.length?grupos.map(g=>`
+    <div class="card" onclick="abrirGrupo('${g.id}','${UI.esc(g.nombre)}','${g.turno}')">
+      <div class="card-top">
+        <span class="badge ${tBadge[g.turno]||'badge-dim'}">${g.turno.toUpperCase()}</span>
+        <button class="card-del" onclick="event.stopPropagation();eliminarGrupo('${g.id}')">🗑</button>
+      </div>
+      <div class="card-name">${UI.esc(g.nombre)}</div>
+      <div class="card-sub">${g.descripcion||'Sin descripción'}</div>
+      <div class="card-stats"><span>${g.alumnos?.[0]?.count??0} Alumnos</span><span>${g.grupo_docentes?.[0]?.count??0} Docentes</span></div>
+    </div>`).join('')
+    :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">👥</div><p>Sin grupos. ¡Crea el primero!</p></div>`;
+}
+async function abrirGrupo(id,nombre,turno){
+  CUR.grupo={id,nombre,turno};
+  document.getElementById('nav-materias').style.display='flex';
+  document.getElementById('nav-materias-lbl').textContent=nombre;
+  document.getElementById('nav-comunicados').style.display='flex';
+  await navTo('materias');
+}
+async function crearGrupo(){
+  const nombre=document.getElementById('gNom').value.trim();
+  if(!nombre){UI.toast('Escribe el nombre','err');return;}
+  await DB.grupos.crear({ciclo_id:CUR.ciclo.id,nombre,turno:document.getElementById('gTurno').value,descripcion:document.getElementById('gDesc').value.trim()||null});
+  UI.closeModal('mGrupo');document.getElementById('gNom').value='';
+  UI.toast('Grupo creado ✓');await loadGrupos();
+}
+async function eliminarGrupo(id){
+  if(!confirm('¿Eliminar este grupo?'))return;
+  await DB.grupos.eliminar(id);UI.toast('Eliminado');await loadGrupos();
+}
+
+/* ══ MATERIAS ══ */
+async function loadMaterias(){
+  UI.showLoader('materiasLoader',true);
+  const materias=await DB.materias.listarPorGrupo(CUR.grupo.id);
+  UI.showLoader('materiasLoader',false);
+  document.getElementById('materiasTitle').textContent=`Asignaturas — ${CUR.grupo.nombre}`;
+  document.getElementById('materiasSub').textContent=CUR.ciclo.nombre;
+  document.getElementById('materiasGrid').innerHTML=materias.length?materias.map(m=>`
+    <div class="card" onclick="abrirMateria('${m.id}','${UI.esc(m.nombre)}')">
+      <div class="card-top">
+        <span class="badge ${m.estado==='ACTIVA'?'badge-y':'badge-dim'}">${m.estado}</span>
+        <button class="card-del" onclick="event.stopPropagation();eliminarMateria('${m.id}')">🗑</button>
+      </div>
+      <div class="card-name">${UI.esc(m.nombre)}</div>
+      <div class="card-sub">${CUR.grupo.nombre} · ${CUR.ciclo.nombre}</div>
+      <div class="card-stats"><span>${m.actividades?.[0]?.count??0} Actividades</span></div>
+    </div>`).join('')
+    :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">📚</div><p>Sin asignaturas</p></div>`;
+}
+async function abrirMateria(id,nombre){
+  CUR.materia={id,nombre};
+  document.getElementById('detTitle').textContent=nombre;
+  document.getElementById('detSub').textContent=`${CUR.grupo.nombre} · ${CUR.ciclo.nombre}`;
+  UI.setBreadcrumb([
+    {label:'Ciclos',action:"navTo('ciclos')"},
+    {label:CUR.ciclo.nombre,action:"navTo('grupos')"},
+    {label:CUR.grupo.nombre,action:"navTo('materias')"},
+    {label:nombre}
+  ]);
+  UI.setTopbar([]);
+  await loadCacheMateria();
+  UI.showView('view-detail');
+  activateTab('cal');
+  iniciarRealtime();
+}
+async function crearMateria(){
+  const nombre=document.getElementById('mNom').value.trim();
+  if(!nombre){UI.toast('Escribe el nombre','err');return;}
+  await DB.materias.crear({grupo_id:CUR.grupo.id,nombre,estado:document.getElementById('mEst').value});
+  UI.closeModal('mMateria');document.getElementById('mNom').value='';
+  UI.toast('Asignatura creada ✓');await loadMaterias();
+}
+async function eliminarMateria(id){
+  if(!confirm('¿Eliminar esta asignatura?'))return;
+  await DB.materias.eliminar(id);UI.toast('Eliminada');await loadMaterias();
+}
+
+/* ══ CACHE ══ */
+async function loadCacheMateria(){
+  const [alumnos,actividades,califs,asistencia]=await Promise.all([
+    DB.alumnos.listarPorGrupo(CUR.grupo.id),
+    DB.actividades.listar(CUR.materia.id),
+    DB.calificaciones.listarPorMateria(CUR.materia.id),
+    DB.asistencia.listarPorMateria(CUR.materia.id),
+  ]);
+  cache={alumnos,actividades,califs,asistencia};
+}
+
+/* ══ TABS ══ */
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>activateTab(t.dataset.tab)));
+function activateTab(tab){
+  CUR_TAB=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  ['cal','asis','acts','rep','com'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===tab?'block':'none';});
+  if(tab==='cal') renderGradebook();
+  if(tab==='asis') renderAsistencia();
+  if(tab==='acts') renderActividades();
+  if(tab==='rep')  renderReporte();
+  if(tab==='com')  renderComunicadosTab();
+}
+
+/* ══ GRADEBOOK ══ */
+function renderGradebook(){
+  const{alumnos,actividades,califs}=cache;
+  if(!alumnos.length){document.getElementById('tab-cal').innerHTML=`<div class="empty"><div class="empty-ico">👥</div><p>Agrega alumnos o importa un CSV</p></div>`;return;}
+  const thActs=actividades.map(a=>`<th>${UI.tipoIcon(a.tipo)} ${UI.esc(a.nombre)}</th>`).join('');
+  const rows=alumnos.map((al,i)=>{
+    const grades=califs[al.id]||{};
+    const cells=actividades.map(a=>{
+      const v=grades[a.id]?.valor??'';
+      return `<td><input class="grade-in" type="number" min="0" max="${a.valor_max}" value="${v!==''?v:''}" placeholder="—" onchange="saveGrade('${al.id}','${a.id}',this.value)"/></td>`;
+    }).join('');
+    const avg=UI.calcAvg(grades,actividades);
+    return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(al.nombre)}</td>${cells}<td class="avg ${UI.avgClass(avg)}">${avg!==null?avg.toFixed(1):'—'}</td><td><button class="btn btn-d btn-sm" onclick="eliminarAlumno('${al.id}')">✕</button></td></tr>`;
+  }).join('');
+  document.getElementById('tab-cal').innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th>${thActs}<th>Prom.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+async function saveGrade(alumnoId,actId,val){
+  const valor=val===''?null:Number(val);
+  const data=await DB.calificaciones.guardar({alumno_id:alumnoId,actividad_id:actId,valor});
+  if(!cache.califs[alumnoId])cache.califs[alumnoId]={};
+  cache.califs[alumnoId][actId]={id:data.id,valor};
+  renderGradebook();
+}
+
+/* ══ ALUMNOS ══ */
+async function crearAlumno(){
+  const nombre=document.getElementById('aNom').value.trim();
+  if(!nombre){UI.toast('Escribe el nombre','err');return;}
+  const data=await DB.alumnos.crear({grupo_id:CUR.grupo.id,nombre,numero_lista:parseInt(document.getElementById('aNum').value)||null});
+  cache.alumnos.push(data);
+  UI.closeModal('mAlumno');document.getElementById('aNom').value='';document.getElementById('aNum').value='';
+  UI.toast('Alumno agregado ✓');renderGradebook();
+}
+async function eliminarAlumno(id){
+  if(!confirm('¿Eliminar este alumno?'))return;
+  await DB.alumnos.eliminar(id);
+  cache.alumnos=cache.alumnos.filter(a=>a.id!==id);
+  UI.toast('Eliminado');renderGradebook();
+}
+
+/* ══ ACTIVIDADES ══ */
+async function crearActividad(){
+  const nombre=document.getElementById('acNom').value.trim();
+  if(!nombre){UI.toast('Escribe el nombre','err');return;}
+  const data=await DB.actividades.crear({materia_id:CUR.materia.id,nombre,tipo:document.getElementById('acTipo').value,fecha:document.getElementById('acFecha').value||null,valor_max:parseFloat(document.getElementById('acValor').value)||10,orden:cache.actividades.length+1});
+  cache.actividades.push(data);
+  UI.closeModal('mActividad');document.getElementById('acNom').value='';
+  UI.toast('Actividad agregada ✓');
+  if(CUR_TAB==='cal')renderGradebook();else renderActividades();
+}
+async function eliminarActividad(id){
+  if(!confirm('¿Eliminar?'))return;
+  await DB.actividades.eliminar(id);
+  cache.actividades=cache.actividades.filter(a=>a.id!==id);
+  UI.toast('Eliminada');renderActividades();
+}
+function renderActividades(){
+  const{actividades}=cache;
+  document.getElementById('tab-acts').innerHTML=actividades.length
+    ?`<div class="act-list">`+actividades.map(a=>`<div class="act-card"><span style="font-size:18px">${UI.tipoIcon(a.tipo)}</span><div><div style="font-size:14px;font-weight:600">${UI.esc(a.nombre)}</div><div style="font-size:11px;color:var(--gr)">Entrega: ${a.fecha||'—'} · Valor: ${a.valor_max} pts</div></div><button class="btn btn-d btn-sm" style="margin-left:auto" onclick="eliminarActividad('${a.id}')">Eliminar</button></div>`).join('')+`</div>`
+    :`<div class="empty"><div class="empty-ico">📝</div><p>Sin actividades</p></div>`;
+}
+
+/* ══ ASISTENCIA ══ */
+function renderAsistencia(){
+  document.getElementById('tab-asis').innerHTML=`
+    <div class="asist-ctrl">
+      <input type="date" class="date-in" id="asistDate" value="${CUR_FECHA}" onchange="cambiarFecha(this.value)"/>
+      <button class="btn btn-g btn-sm" onclick="marcarTodos('P')">✓ Todos Presentes</button>
+      <button class="btn btn-g btn-sm" onclick="marcarTodos('A')">✗ Todos Ausentes</button>
+    </div>
+    <div class="pills" id="asistPills"></div>
+    <div class="tbl-wrap"><table>
+      <thead><tr><th>#</th><th>Alumno</th><th>P</th><th>A</th><th>R</th><th>Asist.</th><th>Faltas</th></tr></thead>
+      <tbody id="asistBody"></tbody>
+    </table></div>`;
+  renderAsistRows();
+}
+function renderAsistRows(){
+  const{alumnos,asistencia}=cache;
+  const dayMap=asistencia[CUR_FECHA]||{};
+  const totales={};
+  Object.values(asistencia).forEach(d=>Object.entries(d).forEach(([aid,rec])=>{if(!totales[aid])totales[aid]={P:0,A:0,R:0};totales[aid][rec.estado]++;}));
+  let p=0,a=0,r=0;
+  Object.values(dayMap).forEach(rec=>{if(rec.estado==='P')p++;else if(rec.estado==='A')a++;else r++;});
+  const pills=document.getElementById('asistPills');
+  if(pills)pills.innerHTML=`<span class="pill pill-p">✓ Presentes: ${p}</span><span class="pill pill-a">✗ Ausentes: ${a}</span><span class="pill pill-r">↻ Retardos: ${r}</span>`;
+  const tbody=document.getElementById('asistBody');
+  if(!tbody)return;
+  tbody.innerHTML=alumnos.map((al,i)=>{
+    const est=dayMap[al.id]?.estado||'';
+    const tot=totales[al.id]||{P:0,A:0,R:0};
+    return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(al.nombre)}</td><td><button class="ab-btn ab-p ${est==='P'?'on':''}" onclick="setAsist('${al.id}','P')">P</button></td><td><button class="ab-btn ab-a ${est==='A'?'on':''}" onclick="setAsist('${al.id}','A')">A</button></td><td><button class="ab-btn ab-r ${est==='R'?'on':''}" onclick="setAsist('${al.id}','R')">R</button></td><td style="font-family:var(--mono);color:var(--ok)">${tot.P}</td><td style="font-family:var(--mono);color:var(--err)">${tot.A}</td></tr>`;
+  }).join('');
+}
+function cambiarFecha(f){CUR_FECHA=f;renderAsistRows();}
+async function setAsist(alumnoId,estado){
+  if(!cache.asistencia[CUR_FECHA])cache.asistencia[CUR_FECHA]={};
+  const existing=cache.asistencia[CUR_FECHA][alumnoId];
+  const nuevoEstado=existing?.estado===estado?null:estado;
+  if(!nuevoEstado){
+    if(existing?.id)await DB.asistencia.eliminar(existing.id);
+    delete cache.asistencia[CUR_FECHA][alumnoId];
+  }else{
+    const data=await DB.asistencia.guardar({alumno_id:alumnoId,materia_id:CUR.materia.id,fecha:CUR_FECHA,estado:nuevoEstado});
+    cache.asistencia[CUR_FECHA][alumnoId]={id:data.id,estado:nuevoEstado};
+  }
+  renderAsistRows();
+}
+async function marcarTodos(estado){
+  if(!cache.asistencia[CUR_FECHA])cache.asistencia[CUR_FECHA]={};
+  const recs=await DB.asistencia.marcarTodos(cache.alumnos,CUR.materia.id,CUR_FECHA,estado);
+  for(const rec of recs)cache.asistencia[CUR_FECHA][rec.alumno_id]={id:rec.id,estado:rec.estado};
+  UI.toast(`Todos marcados ✓`);renderAsistRows();
+}
+
+/* ══ REPORTE ══ */
+function renderReporte(){
+  const{alumnos,actividades,asistencia}=cache;
+  const avgs=alumnos.map(al=>({al,avg:UI.calcAvg(cache.califs[al.id]||{},actividades)}));
+  const validos=avgs.filter(x=>x.avg!==null);
+  const grupoAvg=validos.length?(validos.reduce((s,x)=>s+x.avg,0)/validos.length).toFixed(1):'—';
+  const aprobados=validos.filter(x=>x.avg>=6).length;
+  const reprobados=validos.filter(x=>x.avg<6).length;
+  let totalFaltas=0;
+  Object.values(asistencia).forEach(d=>Object.values(d).forEach(r=>{if(r.estado==='A')totalFaltas++;}));
+  const rows=avgs.map((x,i)=>{
+    const avg=x.avg;let f=0;
+    Object.values(asistencia).forEach(d=>{if(d[x.al.id]?.estado==='A')f++;});
+    const sit=avg===null?'—':avg>=8?'✅ Bueno':avg>=6?'⚠️ Regular':'❌ En riesgo';
+    return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(x.al.nombre)}</td><td class="avg ${UI.avgClass(avg)}">${avg!==null?avg.toFixed(1):'—'}</td><td style="font-family:var(--mono);color:var(--err)">${f}</td><td>${sit}</td></tr>`;
+  }).join('');
+  document.getElementById('tab-rep').innerHTML=`
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-val">${alumnos.length}</div><div class="stat-lbl">Alumnos</div></div>
+      <div class="stat-box"><div class="stat-val">${grupoAvg}</div><div class="stat-lbl">Promedio grupo</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--ok)">${aprobados}</div><div class="stat-lbl">Aprobados</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--err)">${reprobados}</div><div class="stat-lbl">En riesgo</div></div>
+      <div class="stat-box"><div class="stat-val">${actividades.length}</div><div class="stat-lbl">Actividades</div></div>
+      <div class="stat-box"><div class="stat-val" style="color:var(--err)">${totalFaltas}</div><div class="stat-lbl">Faltas totales</div></div>
+    </div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:14px">Concentrado</div>
+    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th><th>Promedio</th><th>Faltas</th><th>Situación</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+/* ══ COMUNICADOS ══ */
+async function crearComunicado(){
+  const titulo=document.getElementById('comTitulo').value.trim();
+  const contenido=document.getElementById('comContenido').value.trim();
+  if(!titulo||!contenido){UI.toast('Completa todos los campos','err');return;}
+  await DB.comunicados.crear({grupo_id:CUR.grupo.id,titulo,contenido,tipo:document.getElementById('comTipo').value});
+  UI.closeModal('mComunicado');
+  document.getElementById('comTitulo').value='';document.getElementById('comContenido').value='';
+  UI.toast('Comunicado publicado ✓');
+  if(CUR_TAB==='com')renderComunicadosTab();
+}
+async function renderComunicadosTab(){
+  const list=await DB.comunicados.listar(CUR.grupo.id);
+  document.getElementById('tab-com').innerHTML=list.length?list.map(c=>`
+    <div class="comunicado-card comunicado-tipo-${c.tipo}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:700;font-size:15px">${UI.esc(c.titulo)}</span>
+        <button class="btn btn-d btn-sm" onclick="eliminarComunicado('${c.id}')">✕</button>
+      </div>
+      <p style="font-size:13px;color:var(--grl);margin-bottom:8px">${UI.esc(c.contenido)}</p>
+      <div style="font-size:11px;color:var(--gr)">${c.docente?.nombre||'—'} · ${new Date(c.created_at).toLocaleDateString('es-MX')}</div>
+    </div>`).join('')
+    :`<div class="empty"><div class="empty-ico">📢</div><p>Sin comunicados</p></div>`;
+}
+async function loadComunicados(){
+  document.getElementById('comunicadosSub').textContent=`${CUR.grupo?.nombre||''} · ${CUR.ciclo?.nombre||''}`;
+  const list=await DB.comunicados.listar(CUR.grupo?.id);
+  document.getElementById('comunicadosList').innerHTML=list.length?list.map(c=>`
+    <div class="comunicado-card comunicado-tipo-${c.tipo}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:700;font-size:15px">${UI.esc(c.titulo)}</span>
+        <button class="btn btn-d btn-sm" onclick="eliminarComunicadoGen('${c.id}')">✕</button>
+      </div>
+      <p style="font-size:13px;color:var(--grl);margin-bottom:8px">${UI.esc(c.contenido)}</p>
+      <div style="font-size:11px;color:var(--gr)">${c.docente?.nombre||'—'} · ${new Date(c.created_at).toLocaleDateString('es-MX')}</div>
+    </div>`).join('')
+    :`<div class="empty"><div class="empty-ico">📢</div><p>Sin comunicados</p></div>`;
+}
+async function eliminarComunicado(id){if(!confirm('¿Eliminar?'))return;await DB.comunicados.eliminar(id);UI.toast('Eliminado');renderComunicadosTab();}
+async function eliminarComunicadoGen(id){if(!confirm('¿Eliminar?'))return;await DB.comunicados.eliminar(id);UI.toast('Eliminado');loadComunicados();}
+
+/* ══ REALTIME ══ */
+function iniciarRealtime(){
+  if(realtimeChannel)sb.removeChannel(realtimeChannel);
+  realtimeChannel=sb.channel(`rt:materia:${CUR.materia.id}`)
+    .on('postgres_changes',{event:'*',schema:'public',table:'calificaciones'},async()=>{
+      cache.califs=await DB.calificaciones.listarPorMateria(CUR.materia.id);
+      if(CUR_TAB==='cal')renderGradebook();
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'asistencia',filter:`materia_id=eq.${CUR.materia.id}`},async()=>{
+      cache.asistencia=await DB.asistencia.listarPorMateria(CUR.materia.id);
+      if(CUR_TAB==='asis')renderAsistRows();
+    })
+    .subscribe();
+}
+
+/* ══ CSV ══ */
+const dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if(e.dataTransfer.files[0])procesarCSV(e.dataTransfer.files[0]);});
+document.getElementById('csvFile').addEventListener('change',e=>{if(e.target.files[0])procesarCSV(e.target.files[0]);});
+
+function procesarCSV(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const{headers,rows}=UI.parseCSV(e.target.result);
+    if(!rows.length){UI.toast('Archivo vacío','err');return;}
+    csvHeaders=headers;csvRows=rows;
+    document.getElementById('csvStep1').style.display='none';
+    document.getElementById('csvStep2').style.display='block';
+    document.getElementById('csvImportBtn').style.display='inline-flex';
+    const ops=['(ninguna)',...headers].map(h=>`<option value="${h}">${h}</option>`).join('');
+    document.getElementById('mapNombre').innerHTML=ops;
+    document.getElementById('mapNumero').innerHTML=ops;
+    document.getElementById('mapNombre').value=headers.find(h=>/nombre|name|alumno/i.test(h))||headers[0];
+    document.getElementById('mapNumero').value=headers.find(h=>/num|lista|no\.|#/i.test(h))||'(ninguna)';
+    document.getElementById('mapNombre').onchange=actualizarPreviewCSV;
+    document.getElementById('mapNumero').onchange=actualizarPreviewCSV;
+    actualizarPreviewCSV();
+  };
+  reader.readAsText(file,'UTF-8');
+}
+function actualizarPreviewCSV(){
+  const cn=document.getElementById('mapNombre').value,cnum=document.getElementById('mapNumero').value;
+  const existentes=new Set(cache.alumnos.map(a=>a.nombre.toLowerCase().trim()));
+  let ok=0,dupes=0;
+  const filas=csvRows.map((row,i)=>{
+    const nombre=row[cn]?.trim()||'';const isDupe=!nombre||existentes.has(nombre.toLowerCase());
+    if(isDupe)dupes++;else ok++;
+    return{nombre,numero:cnum!=='(ninguna)'?row[cnum]?.trim():'',isDupe,idx:i};
+  });
+  document.getElementById('csvStats').innerHTML=`<span class="csv-stat csv-stat-tot">Total: ${filas.length}</span><span class="csv-stat csv-stat-ok">✓ Nuevos: ${ok}</span>${dupes?`<span class="csv-stat csv-stat-err">✗ Dup: ${dupes}</span>`:''}`;
+  document.getElementById('csvPreview').innerHTML=`<table><thead><tr><th>#</th><th>Nombre</th>${cnum!=='(ninguna)'?'<th>No.</th>':''}<th>Estado</th></tr></thead><tbody>${filas.slice(0,50).map(f=>`<tr><td class="num">${f.idx+1}</td><td>${f.nombre||'<em>vacío</em>'}</td>${cnum!=='(ninguna)'?`<td class="num">${f.numero}</td>`:''}<td>${f.isDupe?'<span style="color:var(--err);font-size:11px">Dup.</span>':'<span style="color:var(--ok);font-size:11px">Nuevo</span>'}</td></tr>`).join('')}</tbody></table>`;
+}
+async function importarCSV(){
+  const cn=document.getElementById('mapNombre').value,cnum=document.getElementById('mapNumero').value;
+  const existentes=new Set(cache.alumnos.map(a=>a.nombre.toLowerCase().trim()));
+  const nuevos=csvRows.map(row=>({nombre:row[cn]?.trim()||'',numero:cnum!=='(ninguna)'?parseInt(row[cnum])||null:null}))
+    .filter(r=>r.nombre&&!existentes.has(r.nombre.toLowerCase()))
+    .map(r=>({grupo_id:CUR.grupo.id,nombre:r.nombre,numero_lista:r.numero}));
+  if(!nuevos.length){UI.toast('Sin alumnos nuevos','warn');return;}
+  const btn=document.getElementById('csvImportBtn');btn.disabled=true;btn.textContent='Importando…';
+  const insertados=await DB.alumnos.importar(nuevos);
+  cache.alumnos=await DB.alumnos.listarPorGrupo(CUR.grupo.id);
+  resetCSV();UI.toast(`✓ ${insertados} alumnos importados`);renderGradebook();
+}
+function resetCSV(){
+  csvRows=[];csvHeaders=[];
+  document.getElementById('csvStep1').style.display='block';
+  document.getElementById('csvStep2').style.display='none';
+  const btn=document.getElementById('csvImportBtn');btn.style.display='none';btn.disabled=false;btn.textContent='⬆ Importar';
+  document.getElementById('csvFile').value='';
+  UI.closeModal('mCSV');
+}
+</script>
+</body>
+</html>
