@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TEBAM Digital — Alumno</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a2010"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/ui.js"></script>
+  <style>
+    /* ── Extras alumno ── */
+    .dashboard-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px}
+    .dash-card{background:linear-gradient(145deg,var(--gl),var(--gm));border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:20px;text-align:center}
+    .dash-val{font-size:36px;font-weight:700;font-family:var(--mono);color:var(--y);line-height:1}
+    .dash-lbl{font-size:12px;color:var(--gr);margin-top:6px}
+    .dash-sub{font-size:11px;margin-top:4px;font-weight:600}
+
+    .materia-row{background:linear-gradient(145deg,var(--gl),var(--gm));border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px 20px;margin-bottom:10px;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:14px}
+    .materia-row:hover{border-color:var(--yg);transform:translateX(3px)}
+    .materia-ico{font-size:22px;flex-shrink:0}
+    .materia-info{flex:1}
+    .materia-nombre{font-size:15px;font-weight:700}
+    .materia-docente{font-size:12px;color:var(--gr);margin-top:2px}
+    .materia-avg{font-family:var(--mono);font-weight:700;font-size:20px;flex-shrink:0}
+
+    /* Calendario asistencia */
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+    .cal-day{aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:10px;font-family:var(--mono);font-weight:500;cursor:default}
+    .cal-day.P{background:rgba(114,201,111,.25);color:var(--ok)}
+    .cal-day.A{background:rgba(224,90,78,.25);color:var(--err)}
+    .cal-day.R{background:rgba(241,230,64,.2);color:var(--y)}
+    .cal-day.vacio{background:rgba(255,255,255,.03);color:var(--gr)}
+    .cal-head{font-size:9px;color:var(--gr);text-align:center;padding:2px 0;letter-spacing:.05em}
+
+    /* Actividades pendientes */
+    .pend-card{background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px}
+    .pend-fecha{font-family:var(--mono);font-size:11px;color:var(--gr);white-space:nowrap;text-align:right;min-width:70px}
+    .dias-badge{padding:3px 8px;border-radius:20px;font-size:10px;font-weight:700}
+
+    /* Boleta detalle */
+    .boleta-header{background:linear-gradient(145deg,var(--gl),var(--gm));border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-brand">Telebachillerato Michoacán</div>
+    <div class="sb-title">TEBAM Digital</div>
+    <div class="sb-subtitle">Portal Alumno</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Mi Panel</div>
+    <div class="nav-item active" id="nav-inicio" onclick="navTo('inicio')"><span class="ico">🏠</span> Inicio</div>
+    <div class="nav-item" id="nav-materias" onclick="navTo('materias')"><span class="ico">📚</span> Mis Materias</div>
+    <div class="nav-item" id="nav-asistencia" onclick="navTo('asistencia')"><span class="ico">📅</span> Mi Asistencia</div>
+    <div class="nav-item" id="nav-comunicados" onclick="navTo('comunicados')"><span class="ico">📢</span> Comunicados <span class="nb" id="nb-com" style="display:none">0</span></div>
+  </nav>
+  <div class="sb-foot">
+    <div class="user-avatar">A</div>
+    <div>
+      <div class="sb-user-name user-name">—</div>
+      <div class="sb-user-rol user-rol">Alumno · TEBAM</div>
+    </div>
+    <button class="btn-logout" onclick="Auth.logout()" title="Cerrar sesión">⎋</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="crumb" id="crumb"><span class="crumb-cur">Inicio</span></div>
+    <div id="topbarR"></div>
+  </div>
+  <div class="content">
+
+    <!-- INICIO -->
+    <div class="view active" id="view-inicio">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title" id="bienvenidaTxt">Bienvenido</div>
+          <div class="sec-sub" id="grupoCicloTxt">Cargando…</div>
+        </div>
+      </div>
+      <!-- Stats rápidas -->
+      <div class="dashboard-grid" id="dashStats"></div>
+      <!-- Actividades próximas -->
+      <div style="font-size:16px;font-weight:700;margin-bottom:12px">📌 Actividades Próximas</div>
+      <div id="actividadesPendientes"></div>
+    </div>
+
+    <!-- MIS MATERIAS -->
+    <div class="view" id="view-materias">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Mis Materias</div><div class="sec-sub" id="materiasSubAl"></div></div>
+      </div>
+      <div class="loader" id="materiasLoaderAl"><div class="spinner"></div><span>Cargando…</span></div>
+      <div id="materiasListaAl"></div>
+    </div>
+
+    <!-- DETALLE MATERIA -->
+    <div class="view" id="view-boleta">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <button class="btn btn-g btn-sm" onclick="navTo('materias')">← Volver</button>
+        <div style="font-size:20px;font-weight:700" id="boletaTitulo">—</div>
+      </div>
+      <div class="boleta-header" id="boletaResumen"></div>
+      <div class="tabs">
+        <div class="tab active" data-tab="califs">Calificaciones</div>
+        <div class="tab" data-tab="asistMat">Asistencia</div>
+      </div>
+      <div id="tab-califs"></div>
+      <div id="tab-asistMat" style="display:none"></div>
+    </div>
+
+    <!-- ASISTENCIA GENERAL -->
+    <div class="view" id="view-asistencia">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Mi Asistencia</div><div class="sec-sub">Historial completo por materia</div></div>
+      </div>
+      <div id="asistenciaGeneral"></div>
+    </div>
+
+    <!-- COMUNICADOS -->
+    <div class="view" id="view-comunicados">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Comunicados</div><div class="sec-sub" id="comSubAl"></div></div>
+      </div>
+      <div id="comunicadosListaAl"></div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ ESTADO ══ */
+let alumno = null;   // registro en tabla alumnos
+let grupo  = null;   // grupo del alumno
+let ciclo  = null;   // ciclo actual
+let materias = [];   // materias del grupo
+let CUR_MATERIA = null;
+let CUR_TAB_AL = 'califs';
+
+/* ══ INIT ══ */
+(async () => {
+  UI.initModals();
+  const perfil = await Auth.init('alumno');
+  if (!perfil) return;
+
+  // Buscar registro de alumno vinculado a este perfil
+  const { data: al } = await sb.from('alumnos')
+    .select('*, grupo:grupos(*, ciclo:ciclos(*))')
+    .eq('perfil_id', Auth.user.id)
+    .eq('activo', true)
+    .single();
+
+  if (!al) {
+    // Alumno no tiene perfil_id vinculado — mostrar mensaje
+    document.getElementById('bienvenidaTxt').textContent = 'Cuenta no vinculada';
+    document.getElementById('grupoCicloTxt').textContent = 'Tu cuenta aún no está vinculada a un grupo. Contacta a tu docente.';
+    return;
+  }
+
+  alumno = al;
+  grupo  = al.grupo;
+  ciclo  = al.grupo?.ciclo;
+
+  document.getElementById('bienvenidaTxt').textContent = `Hola, ${Auth.perfil.nombre.split(' ')[0]}`;
+  document.getElementById('grupoCicloTxt').textContent = `${grupo?.nombre || '—'} · ${ciclo?.nombre || '—'}`;
+
+  await cargarMaterias();
+  await renderInicio();
+})();
+
+/* ══ CARGAR MATERIAS ══ */
+async function cargarMaterias() {
+  if (!grupo?.id) return;
+  materias = await DB.materias.listarPorGrupo(grupo.id);
+}
+
+/* ══ NAVEGACIÓN ══ */
+async function navTo(view) {
+  UI.showView('view-' + view);
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('nav-' + view)?.classList.add('active');
+
+  if (view === 'inicio') {
+    UI.setBreadcrumb([{ label: 'Inicio' }]);
+    await renderInicio();
+  }
+  if (view === 'materias') {
+    UI.setBreadcrumb([{ label: 'Mis Materias' }]);
+    document.getElementById('materiasSubAl').textContent = `${grupo?.nombre} · ${ciclo?.nombre}`;
+    await renderMaterias();
+  }
+  if (view === 'asistencia') {
+    UI.setBreadcrumb([{ label: 'Mi Asistencia' }]);
+    await renderAsistenciaGeneral();
+  }
+  if (view === 'comunicados') {
+    UI.setBreadcrumb([{ label: 'Comunicados' }]);
+    document.getElementById('comSubAl').textContent = `${grupo?.nombre} · ${ciclo?.nombre}`;
+    await renderComunicados();
+  }
+}
+
+/* ══ INICIO / DASHBOARD ══ */
+async function renderInicio() {
+  if (!alumno) return;
+
+  // Cargar todas las calificaciones y asistencias del alumno
+  const { data: califs } = await sb.from('calificaciones')
+    .select('*, actividad:actividades(*, materia:materias(nombre))')
+    .eq('alumno_id', alumno.id);
+
+  const { data: asists } = await sb.from('asistencia')
+    .select('*')
+    .eq('alumno_id', alumno.id);
+
+  // Calcular promedio general
+  const vals = (califs || []).map(c => Number(c.valor)).filter(v => !isNaN(v) && v !== null);
+  const promedioGeneral = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length).toFixed(1) : '—';
+
+  // Asistencia
+  const totalDias = (asists || []).length;
+  const presentes = (asists || []).filter(a => a.estado === 'P').length;
+  const faltas    = (asists || []).filter(a => a.estado === 'A').length;
+  const pctAsist  = totalDias ? Math.round((presentes / totalDias) * 100) : 0;
+
+  // Stats
+  const promClass = promedioGeneral === '—' ? '' : Number(promedioGeneral) >= 8 ? 'color:var(--ok)' : Number(promedioGeneral) >= 6 ? 'color:var(--y)' : 'color:var(--err)';
+  const asistClass = pctAsist >= 90 ? 'color:var(--ok)' : pctAsist >= 75 ? 'color:var(--y)' : 'color:var(--err)';
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="dash-card">
+      <div class="dash-val" style="${promClass}">${promedioGeneral}</div>
+      <div class="dash-lbl">Promedio General</div>
+      <div class="dash-sub" style="${promClass}">${promedioGeneral !== '—' ? (Number(promedioGeneral) >= 6 ? '✓ Aprobado' : '✗ En riesgo') : '—'}</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-val" style="${asistClass}">${pctAsist}%</div>
+      <div class="dash-lbl">Asistencia</div>
+      <div class="dash-sub" style="color:var(--gr)">${presentes} de ${totalDias} días</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-val" style="color:var(--err)">${faltas}</div>
+      <div class="dash-lbl">Faltas acumuladas</div>
+      <div class="dash-sub" style="color:var(--gr)">${totalDias ? Math.round((faltas/totalDias)*100) : 0}% del total</div>
+    </div>
+    <div class="dash-card">
+      <div class="dash-val">${materias.length}</div>
+      <div class="dash-lbl">Materias activas</div>
+      <div class="dash-sub" style="color:var(--gr)">${grupo?.nombre || '—'}</div>
+    </div>`;
+
+  // Actividades próximas (con fecha >= hoy, sin calificación)
+  const hoy = new Date().toISOString().split('T')[0];
+  const { data: acts } = await sb.from('actividades')
+    .select('*, materia:materias(nombre)')
+    .in('materia_id', materias.map(m => m.id))
+    .gte('fecha', hoy)
+    .order('fecha', { ascending: true })
+    .limit(8);
+
+  const califIds = new Set((califs || []).map(c => c.actividad_id));
+  const pendientes = (acts || []).filter(a => !califIds.has(a.id));
+
+  document.getElementById('actividadesPendientes').innerHTML = pendientes.length
+    ? pendientes.map(a => {
+        const dias = Math.ceil((new Date(a.fecha) - new Date(hoy)) / 86400000);
+        const color = dias <= 2 ? 'var(--err)' : dias <= 5 ? 'var(--y)' : 'var(--ok)';
+        return `<div class="pend-card">
+          <span style="font-size:18px">${UI.tipoIcon(a.tipo)}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:14px">${UI.esc(a.nombre)}</div>
+            <div style="font-size:12px;color:var(--gr)">${UI.esc(a.materia?.nombre || '—')} · ${a.valor_max} pts</div>
+          </div>
+          <div class="pend-fecha">
+            <div style="font-size:10px;color:var(--gr)">${a.fecha}</div>
+            <div class="dias-badge" style="background:rgba(0,0,0,.2);color:${color};margin-top:3px">
+              ${dias === 0 ? '¡Hoy!' : dias === 1 ? 'Mañana' : `${dias} días`}
+            </div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="empty"><div class="empty-ico">✅</div><p>¡Sin actividades pendientes!</p></div>`;
+}
+
+/* ══ MATERIAS ══ */
+async function renderMaterias() {
+  UI.showLoader('materiasLoaderAl', true);
+  document.getElementById('materiasListaAl').innerHTML = '';
+
+  // Para cada materia calcular promedio del alumno
+  const { data: califs } = await sb.from('calificaciones')
+    .select('*, actividad:actividades!inner(materia_id)')
+    .eq('alumno_id', alumno.id);
+
+  UI.showLoader('materiasLoaderAl', false);
+
+  if (!materias.length) {
+    document.getElementById('materiasListaAl').innerHTML = `<div class="empty"><div class="empty-ico">📚</div><p>Sin materias asignadas</p></div>`;
+    return;
+  }
+
+  document.getElementById('materiasListaAl').innerHTML = materias.map(m => {
+    const califsMat = (califs || []).filter(c => c.actividad?.materia_id === m.id);
+    const vals = califsMat.map(c => Number(c.valor)).filter(v => !isNaN(v));
+    const avg = vals.length ? (vals.reduce((s, v) => s + v, 0) / vals.length) : null;
+    const avgStr = avg !== null ? avg.toFixed(1) : '—';
+    const avgColor = avg === null ? 'var(--gr)' : avg >= 8 ? 'var(--ok)' : avg >= 6 ? 'var(--y)' : 'var(--err)';
+    return `
+      <div class="materia-row" onclick="abrirBoleta('${m.id}','${UI.esc(m.nombre)}')">
+        <span class="materia-ico">📖</span>
+        <div class="materia-info">
+          <div class="materia-nombre">${UI.esc(m.nombre)}</div>
+          <div class="materia-docente">${m.docente?.nombre ? 'Docente: ' + UI.esc(m.docente.nombre) : 'Sin docente asignado'}</div>
+        </div>
+        <div class="materia-avg" style="color:${avgColor}">${avgStr}</div>
+        <span style="color:var(--gr);font-size:18px">›</span>
+      </div>`;
+  }).join('');
+}
+
+/* ══ BOLETA DETALLE ══ */
+async function abrirBoleta(id, nombre) {
+  CUR_MATERIA = { id, nombre };
+  document.getElementById('boletaTitulo').textContent = nombre;
+  UI.showView('view-boleta');
+  UI.setBreadcrumb([
+    { label: 'Mis Materias', action: "navTo('materias')" },
+    { label: nombre }
+  ]);
+  activateTabAl('califs');
+}
+
+document.querySelectorAll('#view-boleta .tab').forEach(t =>
+  t.addEventListener('click', () => activateTabAl(t.dataset.tab))
+);
+
+function activateTabAl(tab) {
+  CUR_TAB_AL = tab;
+  document.querySelectorAll('#view-boleta .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-califs').style.display   = tab === 'califs'   ? 'block' : 'none';
+  document.getElementById('tab-asistMat').style.display = tab === 'asistMat' ? 'block' : 'none';
+  if (tab === 'califs')   renderBoleta();
+  if (tab === 'asistMat') renderAsistMateria();
+}
+
+async function renderBoleta() {
+  const el = document.getElementById('tab-califs');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+
+  const [{ data: actividades }, { data: califs }] = await Promise.all([
+    sb.from('actividades').select('*').eq('materia_id', CUR_MATERIA.id).order('orden'),
+    sb.from('calificaciones').select('*').eq('alumno_id', alumno.id)
+  ]);
+
+  const califMap = {};
+  (califs || []).forEach(c => { califMap[c.actividad_id] = c.valor; });
+
+  const acts = actividades || [];
+  const vals = acts.map(a => califMap[a.id]).filter(v => v !== undefined && v !== null);
+  const avg  = vals.length ? (vals.reduce((s, v) => s + Number(v), 0) / vals.length) : null;
+  const avgStr = avg !== null ? avg.toFixed(1) : '—';
+  const avgColor = avg === null ? 'var(--gr)' : avg >= 8 ? 'var(--ok)' : avg >= 6 ? 'var(--y)' : 'var(--err)';
+
+  // Resumen
+  document.getElementById('boletaResumen').innerHTML = `
+    <div style="font-size:42px;font-weight:700;font-family:var(--mono);color:${avgColor};flex-shrink:0">${avgStr}</div>
+    <div>
+      <div style="font-size:16px;font-weight:700">${UI.esc(CUR_MATERIA.nombre)}</div>
+      <div style="font-size:12px;color:var(--gr);margin-top:3px">${acts.length} actividades evaluadas</div>
+      <div style="font-size:12px;font-weight:600;margin-top:4px;color:${avgColor}">
+        ${avg === null ? '—' : avg >= 6 ? '✓ Aprobado' : '✗ En riesgo'}
+      </div>
+    </div>`;
+
+  if (!acts.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📝</div><p>Sin actividades registradas</p></div>`;
+    return;
+  }
+
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>#</th><th>Actividad</th><th>Tipo</th><th>Fecha</th><th>Valor máx.</th><th>Mi calificación</th></tr></thead>
+    <tbody>${acts.map((a, i) => {
+      const v = califMap[a.id];
+      const vStr = v !== undefined && v !== null ? Number(v).toFixed(1) : '—';
+      const vColor = v === undefined || v === null ? 'var(--gr)' : v >= 8 ? 'var(--ok)' : v >= 6 ? 'var(--y)' : 'var(--err)';
+      return `<tr>
+        <td class="num">${i+1}</td>
+        <td style="font-weight:500">${UI.esc(a.nombre)}</td>
+        <td>${UI.tipoIcon(a.tipo)}</td>
+        <td style="font-family:var(--mono);font-size:12px">${a.fecha || '—'}</td>
+        <td class="num">${a.valor_max}</td>
+        <td style="font-family:var(--mono);font-weight:700;color:${vColor};font-size:15px">${vStr}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+async function renderAsistMateria() {
+  const el = document.getElementById('tab-asistMat');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+
+  const { data: asists } = await sb.from('asistencia')
+    .select('*')
+    .eq('alumno_id', alumno.id)
+    .eq('materia_id', CUR_MATERIA.id)
+    .order('fecha');
+
+  const registros = asists || [];
+  const P = registros.filter(a => a.estado === 'P').length;
+  const A = registros.filter(a => a.estado === 'A').length;
+  const R = registros.filter(a => a.estado === 'R').length;
+  const pct = registros.length ? Math.round((P / registros.length) * 100) : 0;
+
+  el.innerHTML = `
+    <div class="pills">
+      <span class="pill pill-p">✓ Presentes: ${P}</span>
+      <span class="pill pill-a">✗ Ausentes: ${A}</span>
+      <span class="pill pill-r">↻ Retardos: ${R}</span>
+      <span class="pill" style="background:var(--yd);color:var(--y)">📊 ${pct}% asistencia</span>
+    </div>
+    ${renderCalendarioAsist(registros)}`;
+}
+
+function renderCalendarioAsist(registros) {
+  if (!registros.length) return `<div class="empty"><div class="empty-ico">📅</div><p>Sin registros de asistencia</p></div>`;
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  return `
+    <div style="margin-top:16px">
+      <div class="cal-grid" style="margin-bottom:4px">
+        ${dias.map(d => `<div class="cal-head">${d}</div>`).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${agruparPorSemana(registros).map(sem => `
+          <div class="cal-grid">
+            ${sem.map(d => d
+              ? `<div class="cal-day ${d.estado}" title="${d.fecha}">${new Date(d.fecha+'T12:00:00').getDate()}</div>`
+              : `<div class="cal-day vacio"></div>`
+            ).join('')}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function agruparPorSemana(registros) {
+  if (!registros.length) return [];
+  const map = {};
+  registros.forEach(r => { map[r.fecha] = r; });
+  const fechas = registros.map(r => new Date(r.fecha + 'T12:00:00'));
+  const min = new Date(Math.min(...fechas));
+  const max = new Date(Math.max(...fechas));
+  // Ir al inicio de la semana del primer registro
+  const start = new Date(min);
+  start.setDate(start.getDate() - start.getDay());
+  const semanas = [];
+  let current = new Date(start);
+  while (current <= max) {
+    const sem = [];
+    for (let i = 0; i < 7; i++) {
+      const iso = current.toISOString().split('T')[0];
+      sem.push(map[iso] || null);
+      current.setDate(current.getDate() + 1);
+    }
+    semanas.push(sem);
+  }
+  return semanas;
+}
+
+/* ══ ASISTENCIA GENERAL ══ */
+async function renderAsistenciaGeneral() {
+  const el = document.getElementById('asistenciaGeneral');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+
+  const { data: asists } = await sb.from('asistencia')
+    .select('*, materia:materias(nombre)')
+    .eq('alumno_id', alumno.id)
+    .order('fecha');
+
+  const porMateria = {};
+  (asists || []).forEach(a => {
+    const nom = a.materia?.nombre || a.materia_id;
+    if (!porMateria[nom]) porMateria[nom] = [];
+    porMateria[nom].push(a);
+  });
+
+  if (!Object.keys(porMateria).length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📅</div><p>Sin registros de asistencia</p></div>`;
+    return;
+  }
+
+  el.innerHTML = Object.entries(porMateria).map(([nombre, regs]) => {
+    const P = regs.filter(r => r.estado === 'P').length;
+    const A = regs.filter(r => r.estado === 'A').length;
+    const pct = regs.length ? Math.round((P / regs.length) * 100) : 0;
+    const color = pct >= 90 ? 'var(--ok)' : pct >= 75 ? 'var(--y)' : 'var(--err)';
+    return `
+      <div style="background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div style="font-size:15px;font-weight:700">${UI.esc(nombre)}</div>
+            <div style="font-size:12px;color:var(--gr);margin-top:2px">${regs.length} clases registradas</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:26px;font-weight:700;font-family:var(--mono);color:${color}">${pct}%</div>
+            <div style="font-size:11px;color:var(--gr)">${P} presentes · ${A} faltas</div>
+          </div>
+        </div>
+        <!-- Barra de progreso -->
+        <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:.3s"></div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ══ COMUNICADOS ══ */
+async function renderComunicados() {
+  if (!grupo?.id) return;
+  const list = await DB.comunicados.listar(grupo.id);
+  document.getElementById('nb-com').style.display = 'none';
+  document.getElementById('comunicadosListaAl').innerHTML = list.length
+    ? list.map(c => `
+        <div class="comunicado-card comunicado-tipo-${c.tipo}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <span style="font-weight:700;font-size:15px">${UI.esc(c.titulo)}</span>
+            <span class="badge badge-${c.tipo === 'urgente' ? 'err' : c.tipo === 'tarea' ? 'y' : 'dim'}" style="flex-shrink:0;margin-left:10px">${c.tipo.toUpperCase()}</span>
+          </div>
+          <p style="font-size:13px;color:var(--grl);margin-bottom:8px;line-height:1.5">${UI.esc(c.contenido)}</p>
+          <div style="font-size:11px;color:var(--gr)">
+            ${c.docente?.nombre || '—'} · ${new Date(c.created_at).toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+          </div>
+        </div>`)
+      .join('')
+    : `<div class="empty"><div class="empty-ico">📢</div><p>Sin comunicados por ahora</p></div>`;
+}
+</script>
+</body>
+</html>
