@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TEBAM Digital — Padre de Familia</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a2010"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/ui.js"></script>
+  <style>
+    /* ── Extras padre ── */
+    .hijo-selector {
+      display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .hijo-chip {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 20px; cursor: pointer;
+      border: 1px solid rgba(255,255,255,.1); background: var(--gl);
+      font-size: 13px; font-weight: 600; color: var(--grl);
+      transition: .15s;
+    }
+    .hijo-chip:hover { border-color: var(--yg); color: var(--w); }
+    .hijo-chip.active { background: var(--yd); border-color: var(--y); color: var(--y); }
+    .hijo-chip .ava-sm {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--gs); display: flex; align-items: center;
+      justify-content: center; font-size: 11px; font-weight: 700; color: var(--y);
+      flex-shrink: 0;
+    }
+
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 14px; margin-bottom: 24px; }
+    .dash-card { background: linear-gradient(145deg,var(--gl),var(--gm)); border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 18px; text-align: center; }
+    .dash-val { font-size: 34px; font-weight: 700; font-family: var(--mono); color: var(--y); line-height: 1; }
+    .dash-lbl { font-size: 12px; color: var(--gr); margin-top: 5px; }
+    .dash-sub { font-size: 11px; margin-top: 4px; font-weight: 600; }
+
+    .materia-row { background: linear-gradient(145deg,var(--gl),var(--gm)); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 16px 20px; margin-bottom: 10px; cursor: pointer; transition: .2s; display: flex; align-items: center; gap: 14px; }
+    .materia-row:hover { border-color: var(--yg); transform: translateX(3px); }
+    .materia-avg { font-family: var(--mono); font-weight: 700; font-size: 20px; flex-shrink: 0; }
+
+    .alert-card { border-radius: 12px; padding: 14px 18px; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 12px; }
+    .alert-err  { background: rgba(224,90,78,.1);  border: 1px solid rgba(224,90,78,.25); }
+    .alert-warn { background: rgba(232,160,32,.1); border: 1px solid rgba(232,160,32,.25); }
+    .alert-ok   { background: rgba(114,201,111,.1);border: 1px solid rgba(114,201,111,.25); }
+    .alert-ico  { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+    .alert-title { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+    .alert-desc  { font-size: 12px; color: var(--grl); line-height: 1.4; }
+
+    .vincular-card { background: linear-gradient(145deg,var(--gl),var(--gm)); border: 1px solid var(--yg); border-radius: 16px; padding: 28px; text-align: center; max-width: 420px; margin: 40px auto; }
+    .vincular-ico { font-size: 48px; margin-bottom: 14px; }
+    .vincular-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .vincular-sub { font-size: 13px; color: var(--grl); margin-bottom: 24px; line-height: 1.5; }
+
+    .boleta-header { background: linear-gradient(145deg,var(--gl),var(--gm)); border: 1px solid rgba(255,255,255,.06); border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; display: flex; align-items: center; gap: 14px; }
+
+    .prog-bar { height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+    .prog-fill { height: 100%; border-radius: 3px; transition: .3s; }
+
+    .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; margin-top: 8px; }
+    .cal-day { aspect-ratio: 1; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-family: var(--mono); font-weight: 500; }
+    .cal-day.P { background: rgba(114,201,111,.25); color: var(--ok); }
+    .cal-day.A { background: rgba(224,90,78,.25);   color: var(--err); }
+    .cal-day.R { background: rgba(241,230,64,.2);    color: var(--y); }
+    .cal-day.vacio { background: rgba(255,255,255,.03); color: var(--gr); }
+    .cal-head { font-size: 9px; color: var(--gr); text-align: center; padding: 2px 0; letter-spacing: .05em; }
+
+    .pend-card { background: var(--gl); border: 1px solid rgba(255,255,255,.05); border-radius: 10px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-brand">Telebachillerato Michoacán</div>
+    <div class="sb-title">TEBAM Digital</div>
+    <div class="sb-subtitle">Portal Padre de Familia</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Seguimiento</div>
+    <div class="nav-item active" id="nav-inicio"       onclick="navTo('inicio')">      <span class="ico">🏠</span> Resumen</div>
+    <div class="nav-item"        id="nav-materias"     onclick="navTo('materias')">    <span class="ico">📚</span> Materias</div>
+    <div class="nav-item"        id="nav-asistencia"   onclick="navTo('asistencia')">  <span class="ico">📅</span> Asistencia</div>
+    <div class="nav-item"        id="nav-alertas"      onclick="navTo('alertas')">     <span class="ico">🔔</span> Alertas <span class="nb" id="nb-alertas" style="display:none">0</span></div>
+    <div class="nav-item"        id="nav-comunicados"  onclick="navTo('comunicados')"> <span class="ico">📢</span> Comunicados</div>
+    <div class="sb-sec">Mi cuenta</div>
+    <div class="nav-item"        id="nav-vincular"     onclick="navTo('vincular')">    <span class="ico">🔗</span> Vincular Hijo</div>
+  </nav>
+  <div class="sb-foot">
+    <div class="user-avatar">P</div>
+    <div>
+      <div class="sb-user-name user-name">—</div>
+      <div class="sb-user-rol user-rol">Padre de familia · TEBAM</div>
+    </div>
+    <button class="btn-logout" onclick="Auth.logout()" title="Cerrar sesión">⎋</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="crumb" id="crumb"><span class="crumb-cur">Resumen</span></div>
+    <div id="topbarR"></div>
+  </div>
+  <div class="content">
+
+    <!-- INICIO -->
+    <div class="view active" id="view-inicio">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title" id="bienvenidaTxt">Bienvenido</div>
+          <div class="sec-sub" id="bienvenidaSub">Cargando información…</div>
+        </div>
+      </div>
+      <div class="hijo-selector" id="hijoSelector"></div>
+      <div id="inicioContent"></div>
+    </div>
+
+    <!-- MATERIAS -->
+    <div class="view" id="view-materias">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Materias</div><div class="sec-sub" id="materiasSubP"></div></div>
+      </div>
+      <div class="hijo-selector" id="hijoSelectorMat"></div>
+      <div class="loader" id="materiasLoaderP" style="display:none"><div class="spinner"></div><span>Cargando…</span></div>
+      <div id="materiasListaP"></div>
+    </div>
+
+    <!-- BOLETA DETALLE -->
+    <div class="view" id="view-boleta">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <button class="btn btn-g btn-sm" onclick="navTo('materias')">← Volver</button>
+        <div style="font-size:20px;font-weight:700" id="boletaTitulo">—</div>
+      </div>
+      <div class="boleta-header" id="boletaResumen"></div>
+      <div class="tabs">
+        <div class="tab active" data-tab="califs">Calificaciones</div>
+        <div class="tab" data-tab="asistMat">Asistencia</div>
+      </div>
+      <div id="tab-califs"></div>
+      <div id="tab-asistMat" style="display:none"></div>
+    </div>
+
+    <!-- ASISTENCIA -->
+    <div class="view" id="view-asistencia">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Asistencia</div><div class="sec-sub">Historial completo por materia</div></div>
+      </div>
+      <div class="hijo-selector" id="hijoSelectorAsist"></div>
+      <div id="asistenciaContent"></div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="view" id="view-alertas">
+      <div class="sec-hdr">
+        <div><div class="sec-title">🔔 Alertas</div><div class="sec-sub">Situaciones que requieren atención</div></div>
+      </div>
+      <div class="hijo-selector" id="hijoSelectorAlertas"></div>
+      <div id="alertasContent"></div>
+    </div>
+
+    <!-- COMUNICADOS -->
+    <div class="view" id="view-comunicados">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Comunicados</div><div class="sec-sub" id="comSubP"></div></div>
+      </div>
+      <div class="hijo-selector" id="hijoSelectorCom"></div>
+      <div id="comunicadosListaP"></div>
+    </div>
+
+    <!-- VINCULAR HIJO -->
+    <div class="view" id="view-vincular">
+      <div class="vincular-card">
+        <div class="vincular-ico">🔗</div>
+        <div class="vincular-title">Vincular a mi hijo/a</div>
+        <div class="vincular-sub">Ingresa el correo con el que tu hijo inicia sesión en TEBAM Digital para vincularlo a tu cuenta.</div>
+        <div class="field">
+          <label class="lbl">Correo del alumno</label>
+          <input class="inp" id="emailHijo" type="email" placeholder="alumno@tebam.edu.mx"/>
+        </div>
+        <div class="field">
+          <label class="lbl">Relación</label>
+          <select class="sel" id="relacionHijo">
+            <option value="padre">Padre</option>
+            <option value="madre">Madre</option>
+            <option value="tutor">Tutor/a</option>
+          </select>
+        </div>
+        <div class="field" style="margin-top:4px">
+          <button class="btn btn-y" style="width:100%;justify-content:center;padding:12px" onclick="vincularHijo()">Vincular</button>
+        </div>
+        <div id="vincularMsg" style="margin-top:10px;font-size:13px;text-align:center;display:none"></div>
+        <!-- Hijos vinculados -->
+        <div style="margin-top:20px;border-top:1px solid var(--yd);padding-top:16px;text-align:left">
+          <div style="font-size:12px;color:var(--gr);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Hijos vinculados</div>
+          <div id="hijosVinculados"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ ESTADO ══ */
+let hijos     = [];   // lista de tutorías con alumno completo
+let hijoActual = null; // alumno seleccionado actualmente
+let materiasHijo = [];
+let CUR_MATERIA_P = null;
+let CUR_TAB_P = 'califs';
+
+/* ══ INIT ══ */
+(async () => {
+  UI.initModals();
+  const perfil = await Auth.init('padre');
+  if (!perfil) return;
+
+  document.getElementById('bienvenidaTxt').textContent =
+    `Hola, ${Auth.perfil.nombre.split(' ')[0]}`;
+
+  await cargarHijos();
+
+  if (!hijos.length) {
+    document.getElementById('bienvenidaSub').textContent = 'Aún no has vinculado ningún hijo. Usa "Vincular Hijo" en el menú.';
+    renderSinHijos();
+  } else {
+    seleccionarHijo(hijos[0].alumno);
+  }
+})();
+
+/* ══ CARGAR HIJOS ══ */
+async function cargarHijos() {
+  const tutoriasData = await DB.tutores.alumnosDePadre(Auth.user.id);
+  hijos = tutoriasData.filter(t => t.alumno);
+}
+
+function renderSelectorHijos(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el || hijos.length <= 1) { if(el) el.style.display='none'; return; }
+  el.innerHTML = hijos.map(t => {
+    const al = t.alumno;
+    const iniciales = al.nombre.split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||'').join('');
+    const isActive = hijoActual?.id === al.id;
+    return `<div class="hijo-chip ${isActive?'active':''}" onclick="seleccionarHijo(${JSON.stringify(al).replace(/"/g,'&quot;')})">
+      <div class="ava-sm">${iniciales}</div>
+      ${UI.esc(al.nombre.split(' ')[0])}
+    </div>`;
+  }).join('');
+}
+
+async function seleccionarHijo(al) {
+  hijoActual = al;
+  const grupo  = al.grupo;
+  const ciclo  = al.grupo?.ciclo;
+  document.getElementById('bienvenidaSub').textContent =
+    `${al.nombre} · ${grupo?.nombre || '—'} · ${ciclo?.nombre || '—'}`;
+
+  // Cargar materias del grupo
+  if (grupo?.id) {
+    materiasHijo = await DB.materias.listarPorGrupo(grupo.id);
+  }
+
+  // Actualizar todos los selectores
+  ['hijoSelector','hijoSelectorMat','hijoSelectorAsist','hijoSelectorAlertas','hijoSelectorCom']
+    .forEach(id => renderSelectorHijos(id));
+
+  // Cargar vista actual
+  const viewActiva = document.querySelector('.view.active')?.id?.replace('view-','');
+  if (viewActiva && viewActiva !== 'vincular') await renderVistaActual(viewActiva);
+}
+
+async function renderVistaActual(view) {
+  if (view === 'inicio')       await renderInicio();
+  if (view === 'materias')     await renderMaterias();
+  if (view === 'asistencia')   await renderAsistenciaP();
+  if (view === 'alertas')      await renderAlertas();
+  if (view === 'comunicados')  await renderComunicadosP();
+}
+
+function renderSinHijos() {
+  document.getElementById('inicioContent').innerHTML = `
+    <div class="vincular-card" style="margin:0">
+      <div class="vincular-ico">👨‍👧</div>
+      <div class="vincular-title">Sin hijos vinculados</div>
+      <div class="vincular-sub">Ve a "Vincular Hijo" para conectar tu cuenta con la de tu hijo/a.</div>
+      <button class="btn btn-y" style="margin:0 auto;display:flex" onclick="navTo('vincular')">🔗 Vincular ahora</button>
+    </div>`;
+}
+
+/* ══ NAVEGACIÓN ══ */
+async function navTo(view) {
+  UI.showView('view-' + view);
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('nav-' + view)?.classList.add('active');
+
+  const labels = { inicio:'Resumen', materias:'Materias', asistencia:'Asistencia',
+                   alertas:'Alertas', comunicados:'Comunicados', vincular:'Vincular Hijo' };
+  UI.setBreadcrumb([{ label: labels[view] || view }]);
+
+  if (!hijoActual && view !== 'vincular') { renderSinHijos(); return; }
+
+  if (view === 'inicio')      await renderInicio();
+  if (view === 'materias')    await renderMaterias();
+  if (view === 'asistencia')  await renderAsistenciaP();
+  if (view === 'alertas')     await renderAlertas();
+  if (view === 'comunicados') await renderComunicadosP();
+  if (view === 'vincular')    await renderHijosVinculados();
+}
+
+/* ══ INICIO ══ */
+async function renderInicio() {
+  if (!hijoActual) return;
+  renderSelectorHijos('hijoSelector');
+
+  const [{ data: califs }, { data: asists }] = await Promise.all([
+    sb.from('calificaciones')
+      .select('*, actividad:actividades(*, materia:materias(nombre))')
+      .eq('alumno_id', hijoActual.id),
+    sb.from('asistencia')
+      .select('*')
+      .eq('alumno_id', hijoActual.id)
+  ]);
+
+  const vals     = (califs||[]).map(c=>Number(c.valor)).filter(v=>!isNaN(v)&&v!==null);
+  const promedio = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : '—';
+  const P        = (asists||[]).filter(a=>a.estado==='P').length;
+  const A        = (asists||[]).filter(a=>a.estado==='A').length;
+  const total    = (asists||[]).length;
+  const pct      = total ? Math.round((P/total)*100) : 0;
+
+  const promColor  = promedio==='—'?'var(--gr)':Number(promedio)>=8?'var(--ok)':Number(promedio)>=6?'var(--y)':'var(--err)';
+  const asistColor = pct>=90?'var(--ok)':pct>=75?'var(--y)':'var(--err)';
+
+  // Contar alertas
+  const alertas = generarAlertas(promedio, pct, A, califs||[]);
+  const nbEl = document.getElementById('nb-alertas');
+  if (alertas.length) { nbEl.textContent=alertas.length; nbEl.style.display='inline-block'; }
+  else nbEl.style.display = 'none';
+
+  // Actividades próximas sin calificar
+  const hoy  = new Date().toISOString().split('T')[0];
+  const { data: acts } = await sb.from('actividades')
+    .select('*, materia:materias(nombre)')
+    .in('materia_id', materiasHijo.map(m=>m.id))
+    .gte('fecha', hoy)
+    .order('fecha', { ascending:true })
+    .limit(5);
+  const califIds = new Set((califs||[]).map(c=>c.actividad_id));
+  const pendientes = (acts||[]).filter(a=>!califIds.has(a.id));
+
+  document.getElementById('inicioContent').innerHTML = `
+    <div class="dashboard-grid">
+      <div class="dash-card">
+        <div class="dash-val" style="color:${promColor}">${promedio}</div>
+        <div class="dash-lbl">Promedio General</div>
+        <div class="dash-sub" style="color:${promColor}">${promedio!=='—'?(Number(promedio)>=6?'✓ Aprobado':'✗ En riesgo'):'—'}</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-val" style="color:${asistColor}">${pct}%</div>
+        <div class="dash-lbl">Asistencia</div>
+        <div class="dash-sub" style="color:var(--gr)">${P} de ${total} días</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-val" style="color:var(--err)">${A}</div>
+        <div class="dash-lbl">Faltas acumuladas</div>
+        <div class="dash-sub" style="color:var(--gr)">${hijoActual.grupo?.nombre||'—'}</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-val">${materiasHijo.length}</div>
+        <div class="dash-lbl">Materias activas</div>
+        <div class="dash-sub" style="color:var(--gr)">${hijoActual.grupo?.ciclo?.nombre||'—'}</div>
+      </div>
+    </div>
+
+    ${alertas.length ? `
+      <div style="font-size:16px;font-weight:700;margin-bottom:12px">🔔 Alertas recientes</div>
+      ${alertas.slice(0,3).map(renderAlertaCard).join('')}
+      ${alertas.length>3?`<button class="btn btn-g btn-sm" onclick="navTo('alertas')">Ver todas (${alertas.length})</button>`:''}
+      <div style="margin-top:20px"></div>` : ''}
+
+    <div style="font-size:16px;font-weight:700;margin-bottom:12px">📌 Próximas Actividades</div>
+    ${pendientes.length ? pendientes.map(a => {
+      const dias = Math.ceil((new Date(a.fecha)-new Date(hoy))/86400000);
+      const color = dias<=2?'var(--err)':dias<=5?'var(--y)':'var(--ok)';
+      return `<div class="pend-card">
+        <span style="font-size:18px">${UI.tipoIcon(a.tipo)}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px">${UI.esc(a.nombre)}</div>
+          <div style="font-size:12px;color:var(--gr)">${UI.esc(a.materia?.nombre||'—')} · ${a.valor_max} pts</div>
+        </div>
+        <div style="text-align:right;min-width:70px">
+          <div style="font-size:10px;color:var(--gr);font-family:var(--mono)">${a.fecha}</div>
+          <div style="font-size:11px;font-weight:700;color:${color};margin-top:3px">
+            ${dias===0?'¡Hoy!':dias===1?'Mañana':`${dias} días`}
+          </div>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty"><div class="empty-ico">✅</div><p>Sin actividades pendientes</p></div>`}`;
+}
+
+/* ══ ALERTAS ══ */
+function generarAlertas(promedio, pct, faltas, califs) {
+  const alertas = [];
+  if (promedio !== '—' && Number(promedio) < 6)
+    alertas.push({ tipo:'err', ico:'❌', titulo:'Promedio reprobatorio', desc:`El promedio general de ${hijoActual?.nombre?.split(' ')[0]} es ${promedio}, por debajo del mínimo de 6.0.` });
+  else if (promedio !== '—' && Number(promedio) < 7)
+    alertas.push({ tipo:'warn', ico:'⚠️', titulo:'Promedio en riesgo', desc:`El promedio general es ${promedio}. Se recomienda refuerzo académico.` });
+
+  if (pct < 75)
+    alertas.push({ tipo:'err', ico:'📅', titulo:'Asistencia crítica', desc:`Solo ${pct}% de asistencia. Riesgo de baja por inasistencias.` });
+  else if (pct < 85)
+    alertas.push({ tipo:'warn', ico:'📅', titulo:'Asistencia baja', desc:`${pct}% de asistencia. Se recomienda mejorar la puntualidad.` });
+
+  if (faltas >= 5)
+    alertas.push({ tipo:'err', ico:'✗', titulo:`${faltas} faltas acumuladas`, desc:`Acumular más faltas puede afectar el derecho a examen.` });
+
+  // Materias reprobadas
+  const porMateria = {};
+  califs.forEach(c => {
+    const nom = c.actividad?.materia?.nombre;
+    if (!nom) return;
+    if (!porMateria[nom]) porMateria[nom] = [];
+    porMateria[nom].push(Number(c.valor));
+  });
+  Object.entries(porMateria).forEach(([nom, vals]) => {
+    const avg = vals.reduce((s,v)=>s+v,0)/vals.length;
+    if (avg < 6) alertas.push({ tipo:'err', ico:'📚', titulo:`Reprobado en ${nom}`, desc:`Promedio de ${avg.toFixed(1)} en ${nom}. Requiere atención inmediata.` });
+  });
+
+  return alertas;
+}
+
+function renderAlertaCard(a) {
+  return `<div class="alert-card alert-${a.tipo}">
+    <span class="alert-ico">${a.ico}</span>
+    <div>
+      <div class="alert-title" style="color:${a.tipo==='err'?'var(--err)':a.tipo==='warn'?'var(--warn)':'var(--ok)'}">${UI.esc(a.titulo)}</div>
+      <div class="alert-desc">${UI.esc(a.desc)}</div>
+    </div>
+  </div>`;
+}
+
+async function renderAlertas() {
+  if (!hijoActual) return;
+  renderSelectorHijos('hijoSelectorAlertas');
+
+  const [{ data: califs }, { data: asists }] = await Promise.all([
+    sb.from('calificaciones')
+      .select('*, actividad:actividades(*, materia:materias(nombre))')
+      .eq('alumno_id', hijoActual.id),
+    sb.from('asistencia').select('*').eq('alumno_id', hijoActual.id)
+  ]);
+
+  const vals     = (califs||[]).map(c=>Number(c.valor)).filter(v=>!isNaN(v));
+  const promedio = vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1):'—';
+  const P        = (asists||[]).filter(a=>a.estado==='P').length;
+  const A        = (asists||[]).filter(a=>a.estado==='A').length;
+  const total    = (asists||[]).length;
+  const pct      = total?Math.round((P/total)*100):0;
+  const alertas  = generarAlertas(promedio, pct, A, califs||[]);
+
+  document.getElementById('alertasContent').innerHTML = alertas.length
+    ? alertas.map(renderAlertaCard).join('')
+    : `<div class="alert-card alert-ok"><span class="alert-ico">✅</span><div><div class="alert-title" style="color:var(--ok)">Todo en orden</div><div class="alert-desc">No hay alertas para ${UI.esc(hijoActual.nombre.split(' ')[0])} en este momento.</div></div></div>`;
+}
+
+/* ══ MATERIAS ══ */
+async function renderMaterias() {
+  if (!hijoActual) return;
+  renderSelectorHijos('hijoSelectorMat');
+  document.getElementById('materiasSubP').textContent =
+    `${hijoActual.nombre} · ${hijoActual.grupo?.nombre||'—'} · ${hijoActual.grupo?.ciclo?.nombre||'—'}`;
+
+  UI.showLoader('materiasLoaderP', true);
+  const { data: califs } = await sb.from('calificaciones')
+    .select('*, actividad:actividades!inner(materia_id)')
+    .eq('alumno_id', hijoActual.id);
+  UI.showLoader('materiasLoaderP', false);
+
+  if (!materiasHijo.length) {
+    document.getElementById('materiasListaP').innerHTML =
+      `<div class="empty"><div class="empty-ico">📚</div><p>Sin materias asignadas</p></div>`;
+    return;
+  }
+
+  document.getElementById('materiasListaP').innerHTML = materiasHijo.map(m => {
+    const califsMat = (califs||[]).filter(c=>c.actividad?.materia_id===m.id);
+    const vals = califsMat.map(c=>Number(c.valor)).filter(v=>!isNaN(v));
+    const avg  = vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length):null;
+    const avgStr   = avg!==null?avg.toFixed(1):'—';
+    const avgColor = avg===null?'var(--gr)':avg>=8?'var(--ok)':avg>=6?'var(--y)':'var(--err)';
+    return `
+      <div class="materia-row" onclick="abrirBoleta('${m.id}','${UI.esc(m.nombre)}')">
+        <span style="font-size:22px">📖</span>
+        <div style="flex:1">
+          <div style="font-size:15px;font-weight:700">${UI.esc(m.nombre)}</div>
+          <div style="font-size:12px;color:var(--gr);margin-top:2px">${m.docente?.nombre?'Docente: '+UI.esc(m.docente.nombre):'Sin docente asignado'}</div>
+        </div>
+        <div class="materia-avg" style="color:${avgColor}">${avgStr}</div>
+        <span style="color:var(--gr);font-size:18px">›</span>
+      </div>`;
+  }).join('');
+}
+
+/* ══ BOLETA ══ */
+async function abrirBoleta(id, nombre) {
+  CUR_MATERIA_P = { id, nombre };
+  document.getElementById('boletaTitulo').textContent = nombre;
+  UI.showView('view-boleta');
+  UI.setBreadcrumb([
+    { label:'Materias', action:"navTo('materias')" },
+    { label: nombre }
+  ]);
+  activateTabP('califs');
+}
+
+document.querySelectorAll('#view-boleta .tab').forEach(t =>
+  t.addEventListener('click', () => activateTabP(t.dataset.tab))
+);
+
+function activateTabP(tab) {
+  CUR_TAB_P = tab;
+  document.querySelectorAll('#view-boleta .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-califs').style.display   = tab==='califs'  ?'block':'none';
+  document.getElementById('tab-asistMat').style.display = tab==='asistMat'?'block':'none';
+  if (tab==='califs')   renderBoletaP();
+  if (tab==='asistMat') renderAsistMatP();
+}
+
+async function renderBoletaP() {
+  const el = document.getElementById('tab-califs');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+  const [{ data: actividades }, { data: califs }] = await Promise.all([
+    sb.from('actividades').select('*').eq('materia_id', CUR_MATERIA_P.id).order('orden'),
+    sb.from('calificaciones').select('*').eq('alumno_id', hijoActual.id)
+  ]);
+  const califMap = {};
+  (califs||[]).forEach(c => { califMap[c.actividad_id] = c.valor; });
+  const acts = actividades||[];
+  const vals = acts.map(a=>califMap[a.id]).filter(v=>v!==undefined&&v!==null);
+  const avg  = vals.length?(vals.reduce((s,v)=>s+Number(v),0)/vals.length):null;
+  const avgStr   = avg!==null?avg.toFixed(1):'—';
+  const avgColor = avg===null?'var(--gr)':avg>=8?'var(--ok)':avg>=6?'var(--y)':'var(--err)';
+
+  document.getElementById('boletaResumen').innerHTML = `
+    <div style="font-size:42px;font-weight:700;font-family:var(--mono);color:${avgColor};flex-shrink:0">${avgStr}</div>
+    <div>
+      <div style="font-size:16px;font-weight:700">${UI.esc(CUR_MATERIA_P.nombre)}</div>
+      <div style="font-size:12px;color:var(--gr);margin-top:3px">${acts.length} actividades · ${UI.esc(hijoActual.nombre)}</div>
+      <div style="font-size:12px;font-weight:600;margin-top:4px;color:${avgColor}">
+        ${avg===null?'—':avg>=6?'✓ Aprobado':'✗ En riesgo'}
+      </div>
+    </div>`;
+
+  if (!acts.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">📝</div><p>Sin actividades registradas</p></div>`;
+    return;
+  }
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <thead><tr><th>#</th><th>Actividad</th><th>Tipo</th><th>Fecha</th><th>Máx.</th><th>Calificación</th></tr></thead>
+    <tbody>${acts.map((a,i)=>{
+      const v=califMap[a.id];
+      const vStr=v!==undefined&&v!==null?Number(v).toFixed(1):'—';
+      const vColor=v===undefined||v===null?'var(--gr)':v>=8?'var(--ok)':v>=6?'var(--y)':'var(--err)';
+      return `<tr>
+        <td class="num">${i+1}</td>
+        <td style="font-weight:500">${UI.esc(a.nombre)}</td>
+        <td>${UI.tipoIcon(a.tipo)}</td>
+        <td style="font-family:var(--mono);font-size:12px">${a.fecha||'—'}</td>
+        <td class="num">${a.valor_max}</td>
+        <td style="font-family:var(--mono);font-weight:700;color:${vColor};font-size:15px">${vStr}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table></div>`;
+}
+
+async function renderAsistMatP() {
+  const el = document.getElementById('tab-asistMat');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+  const { data: asists } = await sb.from('asistencia')
+    .select('*').eq('alumno_id',hijoActual.id).eq('materia_id',CUR_MATERIA_P.id).order('fecha');
+  const registros = asists||[];
+  const P=registros.filter(a=>a.estado==='P').length;
+  const A=registros.filter(a=>a.estado==='A').length;
+  const R=registros.filter(a=>a.estado==='R').length;
+  const pct=registros.length?Math.round((P/registros.length)*100):0;
+  el.innerHTML = `
+    <div class="pills">
+      <span class="pill pill-p">✓ Presentes: ${P}</span>
+      <span class="pill pill-a">✗ Ausentes: ${A}</span>
+      <span class="pill pill-r">↻ Retardos: ${R}</span>
+      <span class="pill" style="background:var(--yd);color:var(--y)">📊 ${pct}% asistencia</span>
+    </div>
+    ${renderCalendario(registros)}`;
+}
+
+/* ══ ASISTENCIA GENERAL ══ */
+async function renderAsistenciaP() {
+  if (!hijoActual) return;
+  renderSelectorHijos('hijoSelectorAsist');
+  const el = document.getElementById('asistenciaContent');
+  el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
+
+  const { data: asists } = await sb.from('asistencia')
+    .select('*, materia:materias(nombre)').eq('alumno_id',hijoActual.id).order('fecha');
+
+  const porMateria = {};
+  (asists||[]).forEach(a=>{
+    const nom=a.materia?.nombre||a.materia_id;
+    if(!porMateria[nom])porMateria[nom]=[];
+    porMateria[nom].push(a);
+  });
+
+  if (!Object.keys(porMateria).length) {
+    el.innerHTML=`<div class="empty"><div class="empty-ico">📅</div><p>Sin registros de asistencia</p></div>`;return;
+  }
+
+  el.innerHTML = Object.entries(porMateria).map(([nombre,regs])=>{
+    const P=regs.filter(r=>r.estado==='P').length;
+    const A=regs.filter(r=>r.estado==='A').length;
+    const pct=regs.length?Math.round((P/regs.length)*100):0;
+    const color=pct>=90?'var(--ok)':pct>=75?'var(--y)':'var(--err)';
+    return `
+      <div style="background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:16px 20px;margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div>
+            <div style="font-size:15px;font-weight:700">${UI.esc(nombre)}</div>
+            <div style="font-size:12px;color:var(--gr);margin-top:2px">${regs.length} clases · ${P} presentes · ${A} faltas</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:26px;font-weight:700;font-family:var(--mono);color:${color}">${pct}%</div>
+          </div>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>`;
+  }).join('');
+}
+
+/* ══ COMUNICADOS ══ */
+async function renderComunicadosP() {
+  if (!hijoActual?.grupo?.id) return;
+  renderSelectorHijos('hijoSelectorCom');
+  document.getElementById('comSubP').textContent =
+    `${hijoActual.nombre} · ${hijoActual.grupo?.nombre||'—'}`;
+  const list = await DB.comunicados.listar(hijoActual.grupo.id);
+  document.getElementById('comunicadosListaP').innerHTML = list.length
+    ? list.map(c=>`
+        <div class="comunicado-card comunicado-tipo-${c.tipo}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <span style="font-weight:700;font-size:15px">${UI.esc(c.titulo)}</span>
+            <span class="badge badge-${c.tipo==='urgente'?'err':c.tipo==='tarea'?'y':'dim'}" style="flex-shrink:0;margin-left:10px">${c.tipo.toUpperCase()}</span>
+          </div>
+          <p style="font-size:13px;color:var(--grl);margin-bottom:8px;line-height:1.5">${UI.esc(c.contenido)}</p>
+          <div style="font-size:11px;color:var(--gr)">${c.docente?.nombre||'—'} · ${new Date(c.created_at).toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+        </div>`).join('')
+    : `<div class="empty"><div class="empty-ico">📢</div><p>Sin comunicados</p></div>`;
+}
+
+/* ══ VINCULAR HIJO ══ */
+async function vincularHijo() {
+  const email = document.getElementById('emailHijo').value.trim();
+  const relacion = document.getElementById('relacionHijo').value;
+  const msgEl = document.getElementById('vincularMsg');
+  if (!email) { mostrarMsgVincular('Escribe el correo del alumno','err'); return; }
+
+  // Buscar perfil del alumno por email
+  const { data: perfilAl } = await sb.from('perfiles')
+    .select('id, nombre, rol').eq('email', email).single();
+
+  if (!perfilAl) { mostrarMsgVincular('No se encontró ningún alumno con ese correo','err'); return; }
+  if (perfilAl.rol !== 'alumno') { mostrarMsgVincular('Ese correo no pertenece a una cuenta de alumno','err'); return; }
+
+  // Buscar registro en alumnos
+  const { data: alRec } = await sb.from('alumnos')
+    .select('id').eq('perfil_id', perfilAl.id).single();
+
+  if (!alRec) { mostrarMsgVincular('El alumno no tiene perfil escolar vinculado. Pide al docente que lo vincule primero.','err'); return; }
+
+  await DB.tutores.vincular({ padre_id: Auth.user.id, alumno_id: alRec.id, relacion });
+  mostrarMsgVincular(`✓ Vinculado correctamente con ${perfilAl.nombre}`, 'ok');
+  document.getElementById('emailHijo').value = '';
+
+  await cargarHijos();
+  await renderHijosVinculados();
+  if (!hijoActual) seleccionarHijo(hijos[0]?.alumno);
+}
+
+function mostrarMsgVincular(msg, tipo) {
+  const el = document.getElementById('vincularMsg');
+  el.style.display = 'block';
+  el.style.color = tipo==='ok' ? 'var(--ok)' : 'var(--err)';
+  el.textContent = msg;
+}
+
+async function renderHijosVinculados() {
+  const el = document.getElementById('hijosVinculados');
+  if (!hijos.length) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--gr);text-align:center;padding:10px">Sin hijos vinculados aún</div>`;
+    return;
+  }
+  el.innerHTML = hijos.map(t => {
+    const al = t.alumno;
+    const iniciales = al.nombre.split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||'').join('');
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--yd)">
+      <div class="ava-sm">${iniciales}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${UI.esc(al.nombre)}</div>
+        <div style="font-size:11px;color:var(--gr)">${al.grupo?.nombre||'—'} · ${t.relacion}</div>
+      </div>
+      <span class="badge badge-ok">Vinculado</span>
+    </div>`;
+  }).join('');
+}
+
+/* ══ CALENDARIO ASISTENCIA ══ */
+function renderCalendario(registros) {
+  if (!registros.length) return `<div class="empty"><div class="empty-ico">📅</div><p>Sin registros</p></div>`;
+  const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const map  = {};
+  registros.forEach(r => { map[r.fecha] = r; });
+  const fechas = registros.map(r => new Date(r.fecha+'T12:00:00'));
+  const min = new Date(Math.min(...fechas));
+  const max = new Date(Math.max(...fechas));
+  const start = new Date(min);
+  start.setDate(start.getDate() - start.getDay());
+  const semanas = [];
+  let cur = new Date(start);
+  while (cur <= max) {
+    const sem = [];
+    for (let i=0;i<7;i++) {
+      const iso = cur.toISOString().split('T')[0];
+      sem.push(map[iso]||null);
+      cur.setDate(cur.getDate()+1);
+    }
+    semanas.push(sem);
+  }
+  return `<div style="margin-top:16px">
+    <div class="cal-grid" style="margin-bottom:4px">${dias.map(d=>`<div class="cal-head">${d}</div>`).join('')}</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${semanas.map(sem=>`<div class="cal-grid">${sem.map(d=>d
+        ?`<div class="cal-day ${d.estado}" title="${d.fecha}">${new Date(d.fecha+'T12:00:00').getDate()}</div>`
+        :`<div class="cal-day vacio"></div>`).join('')}</div>`).join('')}
+    </div>
+  </div>`;
+}
+</script>
+</body>
+</html>
