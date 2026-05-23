@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TEBAM Digital — Administrador</title>
+  <link rel="manifest" href="/manifest.json"/>
+  <meta name="theme-color" content="#1a2010"/>
+  <link rel="apple-touch-icon" href="/icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/main.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/config.js"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/ui.js"></script>
+  <style>
+    .stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 14px; margin-bottom: 28px; }
+    .stat-card { background: linear-gradient(145deg,var(--gl),var(--gm)); border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 18px; }
+    .stat-card .val { font-size: 32px; font-weight: 700; font-family: var(--mono); color: var(--y); }
+    .stat-card .lbl { font-size: 12px; color: var(--gr); margin-top: 4px; }
+    .stat-card .sub { font-size: 11px; color: var(--grl); margin-top: 3px; }
+
+    .user-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--gl); border: 1px solid rgba(255,255,255,.05); border-radius: 10px; margin-bottom: 8px; transition: .15s; }
+    .user-row:hover { border-color: var(--yg); }
+    .user-ava { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+    .ava-docente { background: rgba(90,172,224,.2);  color: var(--info); }
+    .ava-alumno  { background: rgba(114,201,111,.2); color: var(--ok); }
+    .ava-padre   { background: rgba(232,160,32,.2);  color: var(--warn); }
+    .ava-admin   { background: rgba(241,230,64,.2);  color: var(--y); }
+    .user-name-big { font-size: 14px; font-weight: 600; }
+    .user-email    { font-size: 12px; color: var(--gr); margin-top: 1px; }
+    .user-actions  { margin-left: auto; display: flex; gap: 6px; }
+
+    .filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-chip { padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,.1); background: var(--gl); font-size: 12px; font-weight: 600; color: var(--grl); cursor: pointer; transition: .15s; }
+    .filter-chip:hover { color: var(--w); }
+    .filter-chip.active { background: var(--yd); border-color: var(--y); color: var(--y); }
+
+    .search-inp { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: rgba(0,0,0,.2); color: var(--w); font-family: var(--font); font-size: 13px; outline: none; min-width: 200px; }
+    .search-inp:focus { border-color: var(--y); }
+
+    .grupo-admin-card { background: var(--gl); border: 1px solid rgba(255,255,255,.05); border-radius: 12px; padding: 16px 18px; margin-bottom: 10px; }
+    .grupo-admin-top  { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .grupo-admin-stats { display: flex; gap: 16px; font-size: 12px; color: var(--grl); flex-wrap: wrap; }
+
+    .rol-badge { padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+    .rol-docente { background: rgba(90,172,224,.15);  color: var(--info); }
+    .rol-alumno  { background: rgba(114,201,111,.15); color: var(--ok); }
+    .rol-padre   { background: rgba(232,160,32,.15);  color: var(--warn); }
+    .rol-admin   { background: rgba(241,230,64,.15);  color: var(--y); }
+
+    .tab-filter { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--yd); }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+
+<!-- SIDEBAR -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-brand">Telebachillerato Michoacán</div>
+    <div class="sb-title">TEBAM Digital</div>
+    <div class="sb-subtitle">Panel Administrativo</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Plantel</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard')"><span class="ico">📊</span> Dashboard</div>
+    <div class="nav-item" id="nav-usuarios"   onclick="navTo('usuarios')">  <span class="ico">👥</span> Usuarios</div>
+    <div class="nav-item" id="nav-grupos"     onclick="navTo('grupos')">    <span class="ico">🏫</span> Grupos</div>
+    <div class="nav-item" id="nav-reportes"   onclick="navTo('reportes')">  <span class="ico">📈</span> Reportes</div>
+    <div class="sb-sec">Herramientas</div>
+    <div class="nav-item" id="nav-crear-usuario" onclick="navTo('crear-usuario')"><span class="ico">➕</span> Nuevo Usuario</div>
+  </nav>
+  <div class="sb-foot">
+    <div class="user-avatar">A</div>
+    <div>
+      <div class="sb-user-name user-name">—</div>
+      <div class="sb-user-rol user-rol">Admin · TEBAM</div>
+    </div>
+    <button class="btn-logout" onclick="Auth.logout()" title="Cerrar sesión">⎋</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="crumb" id="crumb"><span class="crumb-cur">Dashboard</span></div>
+    <div id="topbarR"></div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view active" id="view-dashboard">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Dashboard del Plantel</div><div class="sec-sub" id="dashFecha"></div></div>
+      </div>
+      <div class="stat-row" id="dashStats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;flex-wrap:wrap" id="dashGrids"></div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div class="view" id="view-usuarios">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Usuarios del Plantel</div><div class="sec-sub" id="usuariosSub"></div></div>
+        <button class="btn btn-y" onclick="navTo('crear-usuario')">+ Nuevo Usuario</button>
+      </div>
+      <div class="filter-row">
+        <input class="search-inp" id="searchUsuario" placeholder="🔍 Buscar por nombre o correo…" oninput="filtrarUsuarios()"/>
+        <div class="filter-chip active" data-rol="todos" onclick="setFiltroRol(this,'todos')">Todos</div>
+        <div class="filter-chip" data-rol="docente"  onclick="setFiltroRol(this,'docente')"> Docentes</div>
+        <div class="filter-chip" data-rol="alumno"   onclick="setFiltroRol(this,'alumno')">  Alumnos</div>
+        <div class="filter-chip" data-rol="padre"    onclick="setFiltroRol(this,'padre')">   Padres</div>
+        <div class="filter-chip" data-rol="admin"    onclick="setFiltroRol(this,'admin')">   Admins</div>
+      </div>
+      <div id="usuariosLista"></div>
+    </div>
+
+    <!-- GRUPOS -->
+    <div class="view" id="view-grupos">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Grupos del Plantel</div><div class="sec-sub" id="gruposSub"></div></div>
+      </div>
+      <div id="gruposAdminLista"></div>
+    </div>
+
+    <!-- REPORTES -->
+    <div class="view" id="view-reportes">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Reportes</div><div class="sec-sub">Selecciona un grupo para generar reporte PDF</div></div>
+      </div>
+      <div id="reportesLista"></div>
+    </div>
+
+    <!-- CREAR USUARIO -->
+    <div class="view" id="view-crear-usuario">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Nuevo Usuario</div><div class="sec-sub">Crea una cuenta para docente, alumno o padre</div></div>
+      </div>
+      <div style="max-width:480px">
+        <div class="field"><label class="lbl">Nombre Completo</label><input class="inp" id="nuNombre" placeholder="Apellido Apellido, Nombre"/></div>
+        <div class="field"><label class="lbl">Correo</label><input class="inp" type="email" id="nuEmail" placeholder="usuario@tebam.edu.mx"/></div>
+        <div class="field"><label class="lbl">Contraseña temporal</label><input class="inp" type="password" id="nuPass" placeholder="Mínimo 8 caracteres"/></div>
+        <div class="field"><label class="lbl">Rol</label>
+          <select class="sel" id="nuRol" onchange="toggleGrupoField()">
+            <option value="docente">Docente</option>
+            <option value="alumno">Alumno</option>
+            <option value="padre">Padre de familia</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div class="field" id="fieldGrupo" style="display:none">
+          <label class="lbl">Asignar al grupo</label>
+          <select class="sel" id="nuGrupo"><option value="">Sin grupo por ahora</option></select>
+        </div>
+        <div class="field" id="fieldDocentes" style="display:none">
+          <label class="lbl">Asignar a grupo (como docente)</label>
+          <select class="sel" id="nuGrupoDocente"><option value="">Sin grupo por ahora</option></select>
+        </div>
+        <button class="btn btn-y" style="margin-top:6px" onclick="crearUsuario()">Crear Usuario</button>
+        <div id="crearMsg" style="margin-top:12px;font-size:13px;display:none"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Cambiar rol -->
+<div class="overlay" id="mRol"><div class="modal">
+  <div class="modal-title">Cambiar Rol</div>
+  <div class="field">
+    <label class="lbl">Nuevo rol para <span id="mRolNombre">—</span></label>
+    <select class="sel" id="mRolSelect">
+      <option value="docente">Docente</option>
+      <option value="alumno">Alumno</option>
+      <option value="padre">Padre de familia</option>
+      <option value="admin">Administrador</option>
+    </select>
+  </div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mRol')">Cancelar</button>
+    <button class="btn btn-y" onclick="confirmarCambioRol()">Guardar</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ ESTADO ══ */
+let todosUsuarios = [];
+let filtroRolActual = 'todos';
+let usuarioEditando = null;
+let todosGrupos = [];
+
+/* ══ INIT ══ */
+(async () => {
+  UI.initModals();
+  const perfil = await Auth.init('admin');
+  if (!perfil) return;
+  document.getElementById('dashFecha').textContent =
+    new Date().toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  await renderDashboard();
+  await cargarGruposSelect();
+})();
+
+/* ══ NAV ══ */
+async function navTo(view) {
+  UI.showView('view-' + view);
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('nav-' + view)?.classList.add('active');
+  const labels = { dashboard:'Dashboard', usuarios:'Usuarios', grupos:'Grupos', reportes:'Reportes', 'crear-usuario':'Nuevo Usuario' };
+  UI.setBreadcrumb([{ label: labels[view] || view }]);
+  if (view === 'dashboard')     await renderDashboard();
+  if (view === 'usuarios')      await renderUsuarios();
+  if (view === 'grupos')        await renderGruposAdmin();
+  if (view === 'reportes')      await renderReportes();
+  if (view === 'crear-usuario') await cargarGruposSelect();
+}
+
+/* ══ DASHBOARD ══ */
+async function renderDashboard() {
+  const [perfiles, ciclos, grupos, alumnos, materias] = await Promise.all([
+    sb.from('perfiles').select('rol'),
+    sb.from('ciclos').select('id, nombre, activo'),
+    sb.from('grupos').select('id, nombre, ciclo_id'),
+    sb.from('alumnos').select('id').eq('activo', true),
+    sb.from('materias').select('id'),
+  ]);
+
+  const p = perfiles.data || [];
+  const docentes  = p.filter(x => x.rol === 'docente').length;
+  const alum      = p.filter(x => x.rol === 'alumno').length;
+  const padres    = p.filter(x => x.rol === 'padre').length;
+  const ciclosAct = (ciclos.data || []).filter(c => c.activo).length;
+
+  document.getElementById('dashStats').innerHTML = `
+    <div class="stat-card"><div class="val">${docentes}</div><div class="lbl">Docentes</div><div class="sub">Registrados</div></div>
+    <div class="stat-card"><div class="val">${(alumnos.data||[]).length}</div><div class="lbl">Alumnos</div><div class="sub">Activos</div></div>
+    <div class="stat-card"><div class="val">${padres}</div><div class="lbl">Padres</div><div class="sub">Vinculados</div></div>
+    <div class="stat-card"><div class="val">${(grupos.data||[]).length}</div><div class="lbl">Grupos</div><div class="sub">${ciclosAct} ciclo(s) activo(s)</div></div>
+    <div class="stat-card"><div class="val">${(materias.data||[]).length}</div><div class="lbl">Asignaturas</div><div class="sub">Total</div></div>
+    <div class="stat-card"><div class="val">${p.length}</div><div class="lbl">Usuarios totales</div><div class="sub">En el sistema</div></div>`;
+
+  // Distribución por rol + ciclos activos
+  document.getElementById('dashGrids').innerHTML = `
+    <div style="background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:18px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">Distribución de usuarios</div>
+      ${[['Docentes',docentes,'var(--info)'],['Alumnos',(alumnos.data||[]).length,'var(--ok)'],['Padres',padres,'var(--warn)'],['Admins',p.filter(x=>x.rol==='admin').length,'var(--y)']].map(([lbl,val,color])=>{
+        const pct = p.length ? Math.round((val/p.length)*100) : 0;
+        return `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span>${lbl}</span><span style="font-family:var(--mono);color:${color}">${val} (${pct}%)</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:3px"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:12px;padding:18px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">Ciclos Escolares</div>
+      ${(ciclos.data||[]).length ? (ciclos.data||[]).map(c=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--yd)">
+          <span style="font-size:13px;font-weight:500">${UI.esc(c.nombre)}</span>
+          <span class="badge ${c.activo?'badge-y':'badge-dim'}">${c.activo?'ACTIVO':'CERRADO'}</span>
+        </div>`).join('')
+      : `<div style="font-size:13px;color:var(--gr)">Sin ciclos creados</div>`}
+    </div>`;
+}
+
+/* ══ USUARIOS ══ */
+async function renderUsuarios() {
+  const { data } = await sb.from('perfiles').select('*').order('nombre');
+  todosUsuarios = data || [];
+  document.getElementById('usuariosSub').textContent = `${todosUsuarios.length} usuarios registrados`;
+  filtrarUsuarios();
+}
+
+function setFiltroRol(el, rol) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  filtroRolActual = rol;
+  filtrarUsuarios();
+}
+
+function filtrarUsuarios() {
+  const q   = document.getElementById('searchUsuario').value.toLowerCase();
+  let lista = todosUsuarios;
+  if (filtroRolActual !== 'todos') lista = lista.filter(u => u.rol === filtroRolActual);
+  if (q) lista = lista.filter(u => u.nombre?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+  renderListaUsuarios(lista);
+}
+
+function renderListaUsuarios(lista) {
+  const el = document.getElementById('usuariosLista');
+  if (!lista.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">👥</div><p>Sin usuarios que coincidan</p></div>`;
+    return;
+  }
+  const rolColors = { docente:'ava-docente', alumno:'ava-alumno', padre:'ava-padre', admin:'ava-admin' };
+  el.innerHTML = lista.map(u => {
+    const iniciales = (u.nombre||u.email).split(/\s+/).slice(0,2).map(s=>s[0]?.toUpperCase()||'').join('');
+    return `
+      <div class="user-row">
+        <div class="user-ava ${rolColors[u.rol]||'ava-admin'}">${iniciales}</div>
+        <div style="flex:1;min-width:0">
+          <div class="user-name-big">${UI.esc(u.nombre||'Sin nombre')}</div>
+          <div class="user-email">${UI.esc(u.email)}</div>
+        </div>
+        <span class="rol-badge rol-${u.rol}">${u.rol}</span>
+        <div class="user-actions">
+          <button class="btn btn-g btn-sm" onclick="abrirCambioRol('${u.id}','${UI.esc(u.nombre||u.email)}','${u.rol}')">✎ Rol</button>
+          <button class="btn btn-d btn-sm" onclick="eliminarUsuario('${u.id}','${UI.esc(u.nombre||u.email)}')">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function abrirCambioRol(id, nombre, rolActual) {
+  usuarioEditando = id;
+  document.getElementById('mRolNombre').textContent = nombre;
+  document.getElementById('mRolSelect').value = rolActual;
+  UI.openModal('mRol');
+}
+
+async function confirmarCambioRol() {
+  const nuevoRol = document.getElementById('mRolSelect').value;
+  const { error } = await sb.from('perfiles').update({ rol: nuevoRol }).eq('id', usuarioEditando);
+  if (error) { UI.toast('Error: ' + error.message, 'err'); return; }
+  UI.closeModal('mRol');
+  UI.toast('Rol actualizado ✓');
+  await renderUsuarios();
+}
+
+async function eliminarUsuario(id, nombre) {
+  if (!confirm(`¿Eliminar la cuenta de ${nombre}? Esta acción no se puede deshacer.`)) return;
+  const { error } = await sb.auth.admin?.deleteUser(id);
+  if (error) {
+    // Fallback: solo deshabilitar marcando el perfil
+    await sb.from('perfiles').update({ rol: 'alumno' }).eq('id', id);
+    UI.toast('No se pudo eliminar (requiere service_role). Se puede cambiar el rol manualmente.', 'warn');
+    return;
+  }
+  UI.toast(`${nombre} eliminado`);
+  await renderUsuarios();
+}
+
+/* ══ GRUPOS ADMIN ══ */
+async function renderGruposAdmin() {
+  const { data: ciclos } = await sb.from('ciclos').select('*, grupos(*, alumnos(count), materias(count))').order('created_at', { ascending: false });
+  document.getElementById('gruposSub').textContent = 'Vista completa del plantel';
+  todosGrupos = [];
+  (ciclos||[]).forEach(c => (c.grupos||[]).forEach(g => todosGrupos.push({ ...g, ciclo: c })));
+
+  if (!ciclos?.length) {
+    document.getElementById('gruposAdminLista').innerHTML = `<div class="empty"><div class="empty-ico">🏫</div><p>Sin ciclos creados. Crea uno desde el portal docente.</p></div>`;
+    return;
+  }
+
+  document.getElementById('gruposAdminLista').innerHTML = ciclos.map(c => `
+    <div style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <div style="font-size:16px;font-weight:700">${UI.esc(c.nombre)}</div>
+        <span class="badge ${c.activo?'badge-y':'badge-dim'}">${c.activo?'ACTIVO':'CERRADO'}</span>
+      </div>
+      ${(c.grupos||[]).length ? c.grupos.map(g => `
+        <div class="grupo-admin-card">
+          <div class="grupo-admin-top">
+            <div>
+              <div style="font-size:15px;font-weight:700">${UI.esc(g.nombre)}</div>
+              <div style="font-size:12px;color:var(--gr);margin-top:2px">${g.turno||'—'} · ${g.descripcion||'Sin descripción'}</div>
+            </div>
+            <button class="btn btn-g btn-sm" onclick="navTo('reportes')">📄 Reporte PDF</button>
+          </div>
+          <div class="grupo-admin-stats">
+            <span>👥 ${g.alumnos?.[0]?.count??0} Alumnos</span>
+            <span>📚 ${g.materias?.[0]?.count??0} Asignaturas</span>
+          </div>
+        </div>`).join('')
+      : `<div style="font-size:13px;color:var(--gr);padding:10px">Sin grupos en este ciclo</div>`}
+    </div>`).join('');
+}
+
+/* ══ REPORTES PDF ══ */
+async function renderReportes() {
+  const { data: ciclos } = await sb.from('ciclos')
+    .select('*, grupos(id, nombre, turno)')
+    .order('created_at', { ascending: false });
+
+  document.getElementById('reportesLista').innerHTML = (ciclos||[]).map(c => `
+    <div style="margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:var(--y)">${UI.esc(c.nombre)}</div>
+      ${(c.grupos||[]).map(g => `
+        <div style="background:var(--gl);border:1px solid rgba(255,255,255,.05);border-radius:10px;padding:14px 18px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+          <span style="font-size:18px">🏫</span>
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600">${UI.esc(g.nombre)}</div>
+            <div style="font-size:12px;color:var(--gr)">${g.turno} · ${UI.esc(c.nombre)}</div>
+          </div>
+          <button class="btn btn-g btn-sm" onclick="generarPDFGrupo('${g.id}','${UI.esc(g.nombre)}','${UI.esc(c.nombre)}')">📄 Reporte grupo</button>
+          <button class="btn btn-y btn-sm"  onclick="generarBoletasPDF('${g.id}','${UI.esc(g.nombre)}')">📋 Boletas alumnos</button>
+        </div>`).join('')}
+    </div>`).join('') || `<div class="empty"><div class="empty-ico">📈</div><p>Sin grupos para reportar</p></div>`;
+}
+
+/* ══ CREAR USUARIO ══ */
+async function cargarGruposSelect() {
+  const { data } = await sb.from('grupos')
+    .select('id, nombre, ciclo:ciclos(nombre)').order('nombre');
+  todosGrupos = data || [];
+  const ops = `<option value="">Sin grupo por ahora</option>` +
+    todosGrupos.map(g => `<option value="${g.id}">${UI.esc(g.nombre)} (${UI.esc(g.ciclo?.nombre||'—')})</option>`).join('');
+  document.getElementById('nuGrupo').innerHTML = ops;
+  document.getElementById('nuGrupoDocente').innerHTML = ops;
+}
+
+function toggleGrupoField() {
+  const rol = document.getElementById('nuRol').value;
+  document.getElementById('fieldGrupo').style.display     = rol === 'alumno'  ? 'block' : 'none';
+  document.getElementById('fieldDocentes').style.display  = rol === 'docente' ? 'block' : 'none';
+}
+
+async function crearUsuario() {
+  const nombre = document.getElementById('nuNombre').value.trim();
+  const email  = document.getElementById('nuEmail').value.trim();
+  const pass   = document.getElementById('nuPass').value;
+  const rol    = document.getElementById('nuRol').value;
+  const msgEl  = document.getElementById('crearMsg');
+
+  if (!nombre || !email || !pass) {
+    mostrarMsgCrear('Completa todos los campos requeridos', 'err'); return;
+  }
+  if (pass.length < 8) { mostrarMsgCrear('La contraseña debe tener al menos 8 caracteres', 'err'); return; }
+
+  // Crear usuario vía signUp (trigger auto-crea el perfil con el rol)
+  const { data, error } = await sb.auth.signUp({
+    email, password: pass,
+    options: { data: { nombre, rol } }
+  });
+
+  if (error) { mostrarMsgCrear('Error: ' + error.message, 'err'); return; }
+
+  const userId = data.user?.id;
+  if (!userId) { mostrarMsgCrear('Usuario creado pero sin ID. Verifica en Supabase.', 'warn'); return; }
+
+  // Si es alumno y se asignó grupo
+  if (rol === 'alumno') {
+    const grupoId = document.getElementById('nuGrupo').value;
+    if (grupoId) {
+      // Crear registro en alumnos
+      await sb.from('alumnos').insert({ grupo_id: grupoId, nombre, perfil_id: userId });
+    }
+  }
+
+  // Si es docente y se asignó grupo
+  if (rol === 'docente') {
+    const grupoId = document.getElementById('nuGrupoDocente').value;
+    if (grupoId) {
+      await sb.from('grupo_docentes').insert({ grupo_id: grupoId, docente_id: userId });
+    }
+  }
+
+  mostrarMsgCrear(`✓ Usuario ${nombre} creado correctamente`, 'ok');
+  document.getElementById('nuNombre').value = '';
+  document.getElementById('nuEmail').value  = '';
+  document.getElementById('nuPass').value   = '';
+}
+
+function mostrarMsgCrear(msg, tipo) {
+  const el = document.getElementById('crearMsg');
+  el.style.display = 'block';
+  el.style.color   = tipo === 'ok' ? 'var(--ok)' : tipo === 'warn' ? 'var(--warn)' : 'var(--err)';
+  el.textContent   = msg;
+}
+
+/* ══ PDF ══ */
+async function generarPDFGrupo(grupoId, nombreGrupo, nombreCiclo) {
+  UI.toast('Generando reporte PDF…', 'info');
+  try {
+    const [{ data: alumnos }, { data: materias }] = await Promise.all([
+      sb.from('alumnos').select('*').eq('grupo_id', grupoId).eq('activo', true).order('numero_lista'),
+      sb.from('materias').select('*, actividades(*)').eq('grupo_id', grupoId),
+    ]);
+
+    const { data: califs } = await sb.from('calificaciones')
+      .select('*, actividad:actividades!inner(materia_id)')
+      .in('alumno_id', (alumnos||[]).map(a => a.id));
+
+    // Calcular promedios por alumno por materia
+    const resumen = (alumnos||[]).map(al => {
+      const row = { nombre: al.nombre, numero: al.numero_lista, materias: {} };
+      (materias||[]).forEach(m => {
+        const acts  = m.actividades || [];
+        const cals  = (califs||[]).filter(c => c.alumno_id===al.id && c.actividad?.materia_id===m.id);
+        const vals  = cals.map(c => Number(c.valor)).filter(v => !isNaN(v));
+        row.materias[m.nombre] = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(1) : '—';
+      });
+      const todos  = Object.values(row.materias).filter(v => v !== '—').map(Number);
+      row.promedio = todos.length ? (todos.reduce((s,v)=>s+v,0)/todos.length).toFixed(1) : '—';
+      return row;
+    });
+
+    imprimirReporteGrupo(nombreGrupo, nombreCiclo, materias||[], resumen);
+  } catch(e) {
+    UI.toast('Error al generar PDF: ' + e.message, 'err');
+  }
+}
+
+function imprimirReporteGrupo(grupo, ciclo, materias, alumnos) {
+  const estilos = `
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 20px; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    .sub { color: #666; font-size: 12px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    th { background: #2e3618; color: #f1e640; padding: 8px 10px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+    td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    .avg-hi { color: #16a34a; font-weight: 700; }
+    .avg-md { color: #ca8a04; font-weight: 700; }
+    .avg-lo { color: #dc2626; font-weight: 700; }
+    .footer { margin-top: 20px; font-size: 10px; color: #999; text-align: right; }
+    @media print { body { margin: 0; } }`;
+
+  const matCols = materias.map(m => `<th>${m.nombre}</th>`).join('');
+  const rows = alumnos.map((al, i) => {
+    const matCells = materias.map(m => {
+      const v = al.materias[m.nombre];
+      const cls = v==='—'?'':(Number(v)>=8?'avg-hi':Number(v)>=6?'avg-md':'avg-lo');
+      return `<td class="${cls}">${v}</td>`;
+    }).join('');
+    const pCls = al.promedio==='—'?'':(Number(al.promedio)>=8?'avg-hi':Number(al.promedio)>=6?'avg-md':'avg-lo');
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${al.nombre}</td>
+      ${matCells}
+      <td class="${pCls}"><b>${al.promedio}</b></td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Reporte ${grupo}</title>
+    <style>${estilos}</style></head><body>
+    <h1>Concentrado de Calificaciones</h1>
+    <div class="sub">Grupo: <b>${grupo}</b> · Ciclo: <b>${ciclo}</b> · Generado: ${new Date().toLocaleDateString('es-MX')}</div>
+    <table>
+      <thead><tr><th>#</th><th>Alumno</th>${matCols}<th>Promedio</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="footer">TEBAM Digital · Telebachillerato de Michoacán · ${new Date().toLocaleString('es-MX')}</div>
+    </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+}
+
+async function generarBoletasPDF(grupoId, nombreGrupo) {
+  UI.toast('Generando boletas…', 'info');
+  try {
+    const [{ data: alumnos }, { data: materias }] = await Promise.all([
+      sb.from('alumnos').select('*').eq('grupo_id', grupoId).eq('activo', true).order('numero_lista'),
+      sb.from('materias').select('*, actividades(*)').eq('grupo_id', grupoId),
+    ]);
+
+    const { data: califs } = await sb.from('calificaciones')
+      .select('*, actividad:actividades!inner(materia_id, nombre, tipo)')
+      .in('alumno_id', (alumnos||[]).map(a => a.id));
+
+    const { data: asists } = await sb.from('asistencia')
+      .select('alumno_id, estado')
+      .in('alumno_id', (alumnos||[]).map(a => a.id));
+
+    imprimirBoletas(nombreGrupo, alumnos||[], materias||[], califs||[], asists||[]);
+  } catch(e) {
+    UI.toast('Error: ' + e.message, 'err');
+  }
+}
+
+function imprimirBoletas(grupo, alumnos, materias, califs, asists) {
+  const estilos = `
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #222; margin: 0; }
+    .boleta { page-break-after: always; padding: 28px; max-width: 700px; margin: 0 auto; }
+    .boleta:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #2e3618; padding-bottom: 12px; margin-bottom: 16px; }
+    .titulo { font-size: 20px; font-weight: 900; color: #2e3618; }
+    .subtitulo { font-size: 12px; color: #666; margin-top: 3px; }
+    .alumno-nombre { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+    .alumno-info { font-size: 11px; color: #666; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+    th { background: #2e3618; color: #f1e640; padding: 7px 10px; text-align: left; font-size: 10px; text-transform: uppercase; }
+    td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; }
+    tr:nth-child(even) td { background: #f9fafb; }
+    .hi { color: #16a34a; font-weight: 700; } .md { color: #ca8a04; font-weight: 700; } .lo { color: #dc2626; font-weight: 700; }
+    .resumen { display: flex; gap: 16px; margin-top: 14px; }
+    .res-box { flex: 1; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; text-align: center; }
+    .res-val { font-size: 22px; font-weight: 900; } .res-lbl { font-size: 10px; color: #999; margin-top: 2px; }
+    .firma { margin-top: 32px; display: flex; justify-content: space-around; }
+    .firma-line { border-top: 1px solid #999; width: 160px; text-align: center; padding-top: 6px; font-size: 10px; color: #666; }
+    @media print { .boleta { padding: 20px; } }`;
+
+  const boletas = alumnos.map(al => {
+    const rows = materias.map(m => {
+      const acts = m.actividades || [];
+      const cals = califs.filter(c => c.alumno_id===al.id && c.actividad?.materia_id===m.id);
+      const vals = cals.map(c => Number(c.valor)).filter(v => !isNaN(v));
+      const avg  = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length) : null;
+      const avgStr = avg!==null?avg.toFixed(1):'S/E';
+      const cls  = avg===null?'':(avg>=8?'hi':avg>=6?'md':'lo');
+      return `<tr><td>${m.nombre}</td><td>${acts.length}</td><td class="${cls}"><b>${avgStr}</b></td><td>${avg===null?'—':avg>=6?'✓ Aprobado':'✗ Reprobado'}</td></tr>`;
+    }).join('');
+
+    const todosAvg = materias.map(m => {
+      const cals = califs.filter(c => c.alumno_id===al.id && c.actividad?.materia_id===m.id);
+      const vals = cals.map(c=>Number(c.valor)).filter(v=>!isNaN(v));
+      return vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length):null;
+    }).filter(v=>v!==null);
+    const promGen = todosAvg.length?(todosAvg.reduce((s,v)=>s+v,0)/todosAvg.length).toFixed(1):'—';
+    const pCls = promGen==='—'?'':(Number(promGen)>=8?'hi':Number(promGen)>=6?'md':'lo');
+
+    const alAsists = asists.filter(a=>a.alumno_id===al.id);
+    const P=alAsists.filter(a=>a.estado==='P').length;
+    const A=alAsists.filter(a=>a.estado==='A').length;
+    const pct=alAsists.length?Math.round((P/alAsists.length)*100):0;
+
+    return `
+      <div class="boleta">
+        <div class="header">
+          <div>
+            <div class="titulo">TEBAM Digital</div>
+            <div class="subtitulo">Telebachillerato de Michoacán · Boleta de Calificaciones</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:#666">
+            ${new Date().toLocaleDateString('es-MX',{year:'numeric',month:'long',day:'numeric'})}
+          </div>
+        </div>
+        <div class="alumno-nombre">${al.nombre}</div>
+        <div class="alumno-info">Grupo: <b>${grupo}</b> · No. Lista: ${al.numero_lista||'—'}</div>
+        <table>
+          <thead><tr><th>Asignatura</th><th>Actividades</th><th>Promedio</th><th>Resultado</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="resumen">
+          <div class="res-box"><div class="res-val ${pCls}">${promGen}</div><div class="res-lbl">Promedio General</div></div>
+          <div class="res-box"><div class="res-val" style="color:#16a34a">${P}</div><div class="res-lbl">Asistencias</div></div>
+          <div class="res-box"><div class="res-val" style="color:#dc2626">${A}</div><div class="res-lbl">Faltas</div></div>
+          <div class="res-box"><div class="res-val" style="color:${pct>=85?'#16a34a':pct>=75?'#ca8a04':'#dc2626'}">${pct}%</div><div class="res-lbl">% Asistencia</div></div>
+        </div>
+        <div class="firma">
+          <div class="firma-line">Firma del Docente</div>
+          <div class="firma-line">Vo.Bo. Director</div>
+          <div class="firma-line">Firma del Padre/Tutor</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Boletas ${grupo}</title><style>${estilos}</style></head><body>${boletas}</body></html>`);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 600);
+}
+</script>
+</body>
+</html>
