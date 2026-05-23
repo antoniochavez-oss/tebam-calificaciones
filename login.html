@@ -195,9 +195,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-/* Redirigir si ya hay sesión */
+/* Redirigir si ya hay sesión al portal correcto según rol */
 const { data:{ session } } = await sb.auth.getSession();
-if (session) location.href = './app.html';
+if (session) {
+  const { data: p } = await sb.from('perfiles').select('rol').eq('id', session.user.id).single();
+  const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
+  location.href = portales[p?.rol] || './pages/docente.html';
+}
 
 let MODE = 'login';
 
@@ -276,7 +280,9 @@ $('btn').addEventListener('click', async () => {
       showErr(map[error.message] || error.message);
       setLoading(false);
     } else {
-      location.href = './app.html';
+      const { data: rp } = await sb.from('perfiles').select('rol').eq('id', (await sb.auth.getUser()).data.user.id).single();
+      const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
+      location.href = portales[rp?.rol] || './pages/docente.html';
     }
 
   } else {
@@ -295,7 +301,7 @@ $('btn').addEventListener('click', async () => {
       password: pass,
       options: {
         data: { nombre },
-        emailRedirectTo: 'https://tebam-calificaciones.pages.dev/app.html',
+        emailRedirectTo: 'https://tebam-calificaciones.pages.dev/pages/docente.html',
       },
     });
 
@@ -310,8 +316,10 @@ $('btn').addEventListener('click', async () => {
     }
 
     if (data.session) {
-      /* Auto-confirm activo → entrar directo */
-      location.href = './app.html';
+      /* Auto-confirm activo → redirigir según rol */
+      const { data: rp } = await sb.from('perfiles').select('rol').eq('id', data.session.user.id).single();
+      const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
+      location.href = portales[rp?.rol] || './pages/docente.html';
     } else {
       /* Requiere confirmación por correo */
       showOk('✓ Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.');
