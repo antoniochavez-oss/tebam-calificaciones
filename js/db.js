@@ -152,6 +152,7 @@ const DB = window.DB = {
       const { error } = await sb.from('alumnos').update({ activo: false }).eq('id', id);
       if (error) throw error;
     }
+  },
 
   // ─── ACTIVIDADES ───────────────────────────────────────────
   actividades: {
