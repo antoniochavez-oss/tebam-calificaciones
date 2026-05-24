@@ -203,6 +203,17 @@ const sb = createClient(
   'sb_publishable_G5Z7F_qeyg_D0RgGHFHJKw_X_lPJDX7'
 );
 
+const BASE = location.hostname.endsWith('.pages.dev') || location.hostname === 'tebam.edu.mx'
+  ? 'https://tebam-calificaciones.pages.dev' : '.';
+
+const URLS = {
+  login:   `${BASE}/login.html`,
+  docente: `${BASE}/pages/docente.html`,
+  alumno:  `${BASE}/pages/alumno.html`,
+  padre:   `${BASE}/pages/padre.html`,
+  admin:   `${BASE}/pages/admin.html`,
+};
+
 /* Desregistrar Service Worker previo */
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.getRegistrations().then(regs => {
@@ -215,8 +226,8 @@ const { data:{ session } } = await sb.auth.getSession();
 if (session) {
   const { data: p } = await sb.from('perfiles').select('rol').eq('id', session.user.id).single();
   // Admin entra al portal docente (que incluye acceso a panel admin)
-  const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/docente.html' };
-  location.href = portales[p?.rol] || './pages/docente.html';
+  const dest = p?.rol === 'admin' ? URLS.docente : (URLS[p?.rol] || URLS.docente);
+  location.href = dest;
 }
 
 /* ── Recuperación de contraseña ── */
@@ -322,8 +333,8 @@ $('btn').addEventListener('click', async () => {
       setLoading(false);
     } else {
       const { data: rp } = await sb.from('perfiles').select('rol').eq('id', (await sb.auth.getUser()).data.user.id).single();
-      const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
-      location.href = portales[rp?.rol] || './pages/docente.html';
+      const dest = rp?.rol === 'admin' ? URLS.docente : (URLS[rp?.rol] || URLS.docente);
+      location.href = dest;
     }
 
   } else {
@@ -342,7 +353,7 @@ $('btn').addEventListener('click', async () => {
       password: pass,
       options: {
         data: { nombre },
-        emailRedirectTo: 'https://tebam-calificaciones.pages.dev/pages/docente.html',
+        emailRedirectTo: URLS.docente,
       },
     });
 
@@ -359,8 +370,8 @@ $('btn').addEventListener('click', async () => {
     if (data.session) {
       /* Auto-confirm activo → redirigir según rol */
       const { data: rp } = await sb.from('perfiles').select('rol').eq('id', data.session.user.id).single();
-      const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
-      location.href = portales[rp?.rol] || './pages/docente.html';
+      const dest = rp?.rol === 'admin' ? URLS.docente : (URLS[rp?.rol] || URLS.docente);
+      location.href = dest;
     } else {
       /* Requiere confirmación por correo */
       showOk('✓ Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.');
