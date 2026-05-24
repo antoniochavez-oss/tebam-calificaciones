@@ -71,7 +71,9 @@
     <div class="nav-item" id="nav-grupos"     onclick="navTo('grupos')">    <span class="ico">🏫</span> Grupos</div>
     <div class="nav-item" id="nav-reportes"   onclick="navTo('reportes')">  <span class="ico">📈</span> Reportes</div>
     <div class="sb-sec">Herramientas</div>
-    <div class="nav-item" id="nav-crear-usuario" onclick="navTo('crear-usuario')"><span class="ico">➕</span> Nuevo Usuario</div>
+    <div class="nav-item" id="nav-crear-usuario"   onclick="navTo('crear-usuario')">  <span class="ico">➕</span> Nuevo Usuario</div>
+    <div class="nav-item" id="nav-doc-autorizados" onclick="navTo('doc-autorizados')"><span class="ico">🔑</span> Docentes autorizados</div>
+    <div class="nav-item" id="nav-importar"        onclick="navTo('importar')">        <span class="ico">📋</span> Importar alumnos</div>
     <div class="nav-item" onclick="location.href=URLS.docente"><span class="ico">🎓</span> Portal Docente</div>
   </nav>
   <div class="sb-foot">
@@ -164,9 +166,84 @@
       </div>
     </div>
 
+    <!-- DOCENTES AUTORIZADOS -->
+    <div class="view" id="view-doc-autorizados">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Docentes autorizados</div><div class="sec-sub">Genera códigos de invitación para que los docentes creen su cuenta</div></div>
+        <button class="btn btn-y" onclick="abrirModalDocente()">+ Agregar docente</button>
+      </div>
+      <div class="filter-row">
+        <input class="search-inp" id="searchDocAut" placeholder="🔍 Buscar por nombre o correo…" oninput="filtrarDocAutorizados()"/>
+        <div class="filter-chip active" data-da="todos"     onclick="setFiltroDA(this,'todos')">Todos</div>
+        <div class="filter-chip"       data-da="pendiente" onclick="setFiltroDA(this,'pendiente')">Pendientes</div>
+        <div class="filter-chip"       data-da="usado"     onclick="setFiltroDA(this,'usado')">Registrados</div>
+      </div>
+      <div id="docAutLista"></div>
+    </div>
+
+    <!-- IMPORTAR ALUMNOS CSV -->
+    <div class="view" id="view-importar">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Importar alumnos</div><div class="sec-sub">Carga alumnos por grupo desde un archivo CSV</div></div>
+        <button class="btn btn-g btn-sm" onclick="descargarPlantillaAlumnos()">⬇ Plantilla CSV</button>
+      </div>
+      <div style="max-width:560px">
+        <div class="field">
+          <label class="lbl">Ciclo escolar</label>
+          <select class="sel" id="impCiclo" onchange="cargarGruposImport()"><option value="">— Selecciona ciclo —</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Grupo destino</label>
+          <select class="sel" id="impGrupo" disabled><option value="">— Primero selecciona ciclo —</option></select>
+        </div>
+        <div class="field">
+          <label class="lbl">Archivo CSV</label>
+          <div id="impDropzone" style="border:2px dashed rgba(255,255,255,.15);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:.15s"
+               onclick="document.getElementById('impFile').click()"
+               ondragover="event.preventDefault();this.style.borderColor='var(--y)'"
+               ondragleave="this.style.borderColor='rgba(255,255,255,.15)'"
+               ondrop="handleImpDrop(event)">
+            <div style="font-size:24px;margin-bottom:8px">📄</div>
+            <div style="font-size:13px;color:var(--grl)">Arrastra el CSV aquí o <span style="color:var(--y);text-decoration:underline">selecciona archivo</span></div>
+            <div style="font-size:11px;color:var(--gr);margin-top:4px">Columnas requeridas: nombre, matricula, numero_lista</div>
+          </div>
+          <input type="file" id="impFile" accept=".csv" style="display:none" onchange="procesarCSVAlumnos(this.files[0])"/>
+        </div>
+        <div id="impPreview" style="display:none;margin-top:12px">
+          <div style="font-size:13px;font-weight:700;color:var(--grl);margin-bottom:8px" id="impResumen"></div>
+          <div id="impTabla" style="max-height:280px;overflow-y:auto;border-radius:8px;border:1px solid rgba(255,255,255,.08)"></div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-y" id="impBtnConfirmar" onclick="confirmarImportAlumnos()">✓ Importar válidos</button>
+            <button class="btn btn-g" onclick="resetImport()">Cancelar</button>
+          </div>
+        </div>
+        <div id="impMsg" style="margin-top:10px;font-size:13px;display:none"></div>
+      </div>
+    </div>
+
   </div>
 </div>
 </div>
+
+<!-- MODAL: Nuevo docente autorizado -->
+<div class="overlay" id="mDocAut"><div class="modal">
+  <div class="modal-title">Agregar docente autorizado</div>
+  <div class="field"><label class="lbl">Nombre completo</label><input class="inp" id="daName" placeholder="Apellido Apellido, Nombre"/></div>
+  <div class="field"><label class="lbl">Correo (opcional, solo referencia)</label><input class="inp" type="email" id="daEmail" placeholder="docente@tebam.edu.mx"/></div>
+  <div id="daCodigoWrap" style="display:none;margin-top:8px;padding:12px;background:rgba(0,0,0,.2);border-radius:8px;border:1px solid rgba(241,230,64,.2)">
+    <div style="font-size:11px;color:var(--gr);margin-bottom:4px">Código de invitación generado</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div id="daCodigo" style="font-size:22px;font-weight:700;color:var(--y);font-family:var(--mono);letter-spacing:.1em">—</div>
+      <button class="btn btn-g btn-sm" onclick="copiarCodigo()">📋 Copiar</button>
+    </div>
+    <div style="font-size:11px;color:var(--grl);margin-top:6px">Comparte este código con el docente. Solo puede usarse una vez.</div>
+  </div>
+  <div id="daMsgCrear" style="display:none;font-size:12px;margin-top:8px"></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="cerrarModalDocente()">Cerrar</button>
+    <button class="btn btn-y" id="daBtn" onclick="crearDocenteAutorizado()">Generar código</button>
+  </div>
+</div></div>
 
 <!-- MODAL: Cambiar rol -->
 <div class="overlay" id="mRol"><div class="modal">
@@ -211,13 +288,19 @@ async function navTo(view) {
   UI.showView('view-' + view);
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('nav-' + view)?.classList.add('active');
-  const labels = { dashboard:'Dashboard', usuarios:'Usuarios', grupos:'Grupos', reportes:'Reportes', 'crear-usuario':'Nuevo Usuario' };
+  const labels = {
+    dashboard: 'Dashboard', usuarios: 'Usuarios', grupos: 'Grupos',
+    reportes: 'Reportes', 'crear-usuario': 'Nuevo Usuario',
+    'doc-autorizados': 'Docentes autorizados', importar: 'Importar alumnos'
+  };
   UI.setBreadcrumb([{ label: labels[view] || view }]);
-  if (view === 'dashboard')     await renderDashboard();
-  if (view === 'usuarios')      await renderUsuarios();
-  if (view === 'grupos')        await renderGruposAdmin();
-  if (view === 'reportes')      await renderReportes();
-  if (view === 'crear-usuario') await cargarGruposSelect();
+  if (view === 'dashboard')       await renderDashboard();
+  if (view === 'usuarios')        await renderUsuarios();
+  if (view === 'grupos')          await renderGruposAdmin();
+  if (view === 'reportes')        await renderReportes();
+  if (view === 'crear-usuario')   await cargarGruposSelect();
+  if (view === 'doc-autorizados') await renderDocAutorizados();
+  if (view === 'importar')        await cargarCiclosImport();
 }
 
 /* ══ DASHBOARD ══ */
@@ -663,6 +746,337 @@ function imprimirBoletas(grupo, alumnos, materias, califs, asists) {
   win.focus();
   setTimeout(() => { win.print(); }, 600);
 }
+/* ══════════════════════════════════════════════════
+   DOCENTES AUTORIZADOS
+══════════════════════════════════════════════════ */
+let todosDocAutorizados = [];
+let filtroDA = 'todos';
+
+async function renderDocAutorizados() {
+  const { data, error } = await sb
+    .from('docentes_autorizados')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) { UI.toast('Error al cargar docentes: ' + error.message, 'err'); return; }
+  todosDocAutorizados = data || [];
+  filtrarDocAutorizados();
+}
+
+function setFiltroDA(el, val) {
+  filtroDA = val;
+  document.querySelectorAll('[data-da]').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  filtrarDocAutorizados();
+}
+
+function filtrarDocAutorizados() {
+  const q = (document.getElementById('searchDocAut')?.value || '').toLowerCase();
+  let lista = todosDocAutorizados.filter(d => {
+    const matchQ = !q || d.nombre.toLowerCase().includes(q) || (d.email||'').toLowerCase().includes(q);
+    const matchF = filtroDA === 'todos'
+      ? true
+      : filtroDA === 'pendiente' ? !d.usado : d.usado;
+    return matchQ && matchF;
+  });
+  const el = document.getElementById('docAutLista');
+  if (!lista.length) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">🔑</div><p>No hay docentes en este filtro.</p></div>`;
+    return;
+  }
+  el.innerHTML = lista.map(d => `
+    <div class="user-row">
+      <div class="user-ava ava-docente" style="font-size:16px">📚</div>
+      <div style="flex:1">
+        <div class="user-name-big">${UI.esc(d.nombre)}</div>
+        <div class="user-email">${d.email ? UI.esc(d.email) : 'Sin correo registrado'}</div>
+        <div style="margin-top:4px;display:flex;align-items:center;gap:10px">
+          <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--y);letter-spacing:.08em">${d.codigo_invitacion}</span>
+          <span class="rol-badge ${d.usado ? 'rol-alumno' : 'rol-docente'}">${d.usado ? 'REGISTRADO' : 'PENDIENTE'}</span>
+        </div>
+      </div>
+      <div class="user-actions">
+        ${!d.usado ? `<button class="btn btn-g btn-sm" onclick="copiarCodigoDA('${d.codigo_invitacion}')">📋 Copiar</button>` : ''}
+        ${!d.usado ? `<button class="btn btn-g btn-sm" onclick="revocarDocente('${d.id}','${UI.esc(d.nombre)}')">Revocar</button>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalDocente() {
+  document.getElementById('daName').value = '';
+  document.getElementById('daEmail').value = '';
+  document.getElementById('daCodigoWrap').style.display = 'none';
+  document.getElementById('daMsgCrear').style.display = 'none';
+  document.getElementById('daBtn').style.display = 'inline-flex';
+  UI.openModal('mDocAut');
+}
+
+function cerrarModalDocente() {
+  UI.closeModal('mDocAut');
+  renderDocAutorizados();
+}
+
+async function crearDocenteAutorizado() {
+  const nombre = document.getElementById('daName').value.trim();
+  const email  = document.getElementById('daEmail').value.trim();
+  const msg    = document.getElementById('daMsgCrear');
+
+  if (!nombre) {
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = 'Escribe el nombre del docente.'; return;
+  }
+
+  document.getElementById('daBtn').disabled = true;
+
+  // Llamar a la función SQL que genera el código único
+  const { data: codigo, error: errCodigo } = await sb.rpc('generar_codigo_docente');
+  if (errCodigo) {
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = 'Error al generar código: ' + errCodigo.message;
+    document.getElementById('daBtn').disabled = false;
+    return;
+  }
+
+  const { error } = await sb.from('docentes_autorizados').insert({
+    nombre,
+    email: email || null,
+    codigo_invitacion: codigo,
+    created_by: Auth.user.id
+  });
+
+  if (error) {
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = 'Error: ' + error.message;
+    document.getElementById('daBtn').disabled = false;
+    return;
+  }
+
+  // Mostrar el código generado
+  document.getElementById('daCodigo').textContent = codigo;
+  document.getElementById('daCodigoWrap').style.display = 'block';
+  document.getElementById('daBtn').style.display = 'none';
+  msg.style.display = 'block'; msg.style.color = 'var(--ok)';
+  msg.textContent = `✓ Docente "${nombre}" registrado.`;
+  UI.toast(`✓ Código ${codigo} generado para ${nombre}`);
+}
+
+function copiarCodigo() {
+  const c = document.getElementById('daCodigo').textContent;
+  navigator.clipboard.writeText(c).then(() => UI.toast('✓ Código copiado: ' + c));
+}
+
+function copiarCodigoDA(codigo) {
+  navigator.clipboard.writeText(codigo).then(() => UI.toast('✓ Código copiado: ' + codigo));
+}
+
+async function revocarDocente(id, nombre) {
+  if (!confirm(`¿Revocar el código de invitación de "${nombre}"? No podrá usarlo para registrarse.`)) return;
+  const { error } = await sb.from('docentes_autorizados').update({ usado: true }).eq('id', id);
+  if (error) { UI.toast('Error: ' + error.message, 'err'); return; }
+  UI.toast(`✓ Código de ${nombre} revocado`);
+  await renderDocAutorizados();
+}
+
+/* ══════════════════════════════════════════════════
+   IMPORTAR ALUMNOS CSV
+══════════════════════════════════════════════════ */
+let impFilasParsed = [];
+
+async function cargarCiclosImport() {
+  const { data } = await sb.from('ciclos').select('id, nombre, activo').order('created_at', { ascending: false });
+  const sel = document.getElementById('impCiclo');
+  sel.innerHTML = '<option value="">— Selecciona ciclo —</option>' +
+    (data||[]).map(c => `<option value="${c.id}">${UI.esc(c.nombre)}${c.activo?'':' (cerrado)'}</option>`).join('');
+  document.getElementById('impGrupo').disabled = true;
+  document.getElementById('impGrupo').innerHTML = '<option value="">— Primero selecciona ciclo —</option>';
+}
+
+async function cargarGruposImport() {
+  const cicloId = document.getElementById('impCiclo').value;
+  const sel     = document.getElementById('impGrupo');
+  if (!cicloId) { sel.disabled = true; sel.innerHTML = '<option value="">— Primero selecciona ciclo —</option>'; return; }
+  const { data } = await sb.from('grupos').select('id, nombre, turno').eq('ciclo_id', cicloId).order('nombre');
+  sel.innerHTML = '<option value="">— Selecciona grupo —</option>' +
+    (data||[]).map(g => `<option value="${g.id}">${UI.esc(g.nombre)} ${g.turno||''}</option>`).join('');
+  sel.disabled = false;
+  resetImport();
+}
+
+function handleImpDrop(e) {
+  e.preventDefault();
+  document.getElementById('impDropzone').style.borderColor = 'rgba(255,255,255,.15)';
+  const file = e.dataTransfer.files[0];
+  if (file) procesarCSVAlumnos(file);
+}
+
+function procesarCSVAlumnos(file) {
+  if (!file) return;
+  const grupoId = document.getElementById('impGrupo').value;
+  if (!grupoId) {
+    mostrarImpMsg('Selecciona un grupo antes de cargar el archivo.', 'err'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => parsearCSVAlumnos(e.target.result);
+  reader.readAsText(file, 'UTF-8');
+}
+
+function parsearCSVAlumnos(texto) {
+  const lineas = texto.trim().split(/\r?\n/).filter(Boolean);
+  if (lineas.length < 2) { mostrarImpMsg('El archivo está vacío o no tiene datos.', 'err'); return; }
+
+  const sep     = lineas[0].includes(';') ? ';' : ',';
+  const headers = lineas[0].split(sep).map(h => h.trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, ''));
+
+  // Detectar columnas requeridas con variantes
+  const iNombre  = headers.findIndex(h => ['nombre','name','alumno','estudiante'].includes(h));
+  const iMatric  = headers.findIndex(h => ['matricula','matricula','clave','curp','id'].includes(h));
+  const iNumero  = headers.findIndex(h => ['numero_lista','numero','no','num','lista','#'].includes(h));
+
+  if (iNombre === -1 || iMatric === -1) {
+    mostrarImpMsg('No se encontraron las columnas "nombre" y "matricula". Descarga la plantilla para ver el formato correcto.', 'err');
+    return;
+  }
+
+  const grupoId = document.getElementById('impGrupo').value;
+  impFilasParsed = [];
+
+  lineas.slice(1).forEach((linea, idx) => {
+    const cols      = linea.split(sep);
+    const nombre    = (cols[iNombre]  || '').trim();
+    const matricula = (cols[iMatric]  || '').trim().toUpperCase();
+    const numero    = iNumero !== -1 ? parseInt(cols[iNumero]) || (idx + 1) : (idx + 1);
+
+    if (!nombre || !matricula) {
+      impFilasParsed.push({ nombre, matricula, numero, estado: 'error', razon: 'Nombre o matrícula vacíos' });
+      return;
+    }
+    impFilasParsed.push({ nombre, matricula, numero_lista: numero, grupo_id: grupoId, estado: 'ok' });
+  });
+
+  // Detectar duplicados internos al CSV
+  const vistas = new Set();
+  impFilasParsed.forEach(f => {
+    if (f.estado !== 'ok') return;
+    if (vistas.has(f.matricula)) {
+      f.estado = 'dup'; f.razon = 'Matrícula duplicada en el CSV';
+    } else {
+      vistas.add(f.matricula);
+    }
+  });
+
+  renderPreviewImport();
+}
+
+async function renderPreviewImport() {
+  // Verificar duplicados contra la BD
+  const matriculas = impFilasParsed.filter(f => f.estado === 'ok').map(f => f.matricula);
+
+  if (matriculas.length > 0) {
+    const { data: existentes } = await sb
+      .from('alumnos')
+      .select('matricula')
+      .in('matricula', matriculas);
+    const setExist = new Set((existentes||[]).map(e => e.matricula));
+    impFilasParsed.forEach(f => {
+      if (f.estado === 'ok' && setExist.has(f.matricula)) {
+        f.estado = 'dup'; f.razon = 'Matrícula ya existe en la base de datos';
+      }
+    });
+  }
+
+  const validos  = impFilasParsed.filter(f => f.estado === 'ok').length;
+  const errores  = impFilasParsed.filter(f => f.estado === 'error').length;
+  const dups     = impFilasParsed.filter(f => f.estado === 'dup').length;
+
+  document.getElementById('impResumen').innerHTML =
+    `Total: <b>${impFilasParsed.length}</b> filas &nbsp;·&nbsp; ` +
+    `<span style="color:var(--ok)">✓ ${validos} nuevos</span> &nbsp;·&nbsp; ` +
+    `<span style="color:var(--err)">✗ ${errores + dups} omitidos</span>`;
+
+  document.getElementById('impTabla').innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:rgba(0,0,0,.3)">
+        <th style="padding:7px 10px;text-align:left;color:var(--grl)">#</th>
+        <th style="padding:7px 10px;text-align:left;color:var(--grl)">Nombre</th>
+        <th style="padding:7px 10px;text-align:left;color:var(--grl)">Matrícula</th>
+        <th style="padding:7px 10px;text-align:left;color:var(--grl)">Estado</th>
+      </tr></thead>
+      <tbody>${impFilasParsed.map(f => `
+        <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+          <td style="padding:6px 10px;color:var(--gr)">${f.numero_lista || '—'}</td>
+          <td style="padding:6px 10px">${UI.esc(f.nombre)}</td>
+          <td style="padding:6px 10px;font-family:var(--mono);font-size:11px">${UI.esc(f.matricula)}</td>
+          <td style="padding:6px 10px">
+            ${f.estado === 'ok'
+              ? '<span style="color:var(--ok)">✓ Nuevo</span>'
+              : `<span style="color:var(--err)" title="${f.razon||''}">✗ ${f.razon||'Error'}</span>`}
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  document.getElementById('impPreview').style.display = 'block';
+  document.getElementById('impBtnConfirmar').disabled = validos === 0;
+}
+
+async function confirmarImportAlumnos() {
+  const filas = impFilasParsed.filter(f => f.estado === 'ok');
+  if (!filas.length) return;
+
+  document.getElementById('impBtnConfirmar').disabled = true;
+
+  // Insertar en lotes de 50
+  let insertados = 0;
+  const lotes = [];
+  for (let i = 0; i < filas.length; i += 50) lotes.push(filas.slice(i, i + 50));
+
+  for (const lote of lotes) {
+    const rows = lote.map(f => ({
+      grupo_id:     f.grupo_id,
+      nombre:       f.nombre,
+      matricula:    f.matricula,
+      numero_lista: f.numero_lista,
+      activo:       true
+    }));
+    const { data, error } = await sb.from('alumnos').insert(rows).select();
+    if (error) {
+      mostrarImpMsg('Error en inserción: ' + error.message, 'err');
+      document.getElementById('impBtnConfirmar').disabled = false;
+      return;
+    }
+    insertados += data?.length || 0;
+  }
+
+  mostrarImpMsg(`✓ ${insertados} alumnos importados correctamente.`, 'ok');
+  UI.toast(`✓ ${insertados} alumnos importados`);
+  resetImport();
+  await renderDashboard();
+}
+
+function resetImport() {
+  impFilasParsed = [];
+  document.getElementById('impPreview').style.display = 'none';
+  document.getElementById('impFile').value = '';
+  mostrarImpMsg('', 'ok');
+}
+
+function mostrarImpMsg(msg, tipo) {
+  const el = document.getElementById('impMsg');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.color   = tipo === 'ok' ? 'var(--ok)' : 'var(--err)';
+  el.textContent   = msg;
+}
+
+function descargarPlantillaAlumnos() {
+  const csv = 'numero_lista,nombre,matricula\n1,García López Juan,2024TEBAM001\n2,Martínez Torres Ana,2024TEBAM002\n3,Pérez Hernández Luis,2024TEBAM003';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = 'plantilla_alumnos_tebam.csv';
+  a.click();
+}
+
 </script>
 </body>
 </html>
