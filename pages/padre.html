@@ -182,10 +182,13 @@
       <div class="vincular-card">
         <div class="vincular-ico">🔗</div>
         <div class="vincular-title">Vincular a mi hijo/a</div>
-        <div class="vincular-sub">Ingresa el correo con el que tu hijo inicia sesión en TEBAM Digital para vincularlo a tu cuenta.</div>
+        <div class="vincular-sub">Ingresa la matrícula escolar de tu hijo/a. La matrícula aparece en su credencial o la proporciona la dirección académica.</div>
         <div class="field">
-          <label class="lbl">Correo del alumno</label>
-          <input class="inp" id="emailHijo" type="email" placeholder="alumno@tebam.edu.mx"/>
+          <label class="lbl">Matrícula escolar</label>
+          <input class="inp" id="matriculaHijo" type="text" placeholder="Ej. 2024TEBAM001" autocomplete="off"
+                 style="text-transform:uppercase;letter-spacing:.05em;font-weight:600"
+                 oninput="this.value=this.value.toUpperCase()"/>
+          <div id="matriculaHijoStatus" style="font-size:12px;margin-top:5px;min-height:16px;text-align:left"></div>
         </div>
         <div class="field">
           <label class="lbl">Relación</label>
@@ -671,27 +674,69 @@ async function renderComunicadosP() {
 
 /* ══ VINCULAR HIJO ══ */
 async function vincularHijo() {
-  const email = document.getElementById('emailHijo').value.trim();
-  const relacion = document.getElementById('relacionHijo').value;
-  const msgEl = document.getElementById('vincularMsg');
-  if (!email) { mostrarMsgVincular('Escribe el correo del alumno','err'); return; }
+  const matricula = document.getElementById('matriculaHijo').value.trim().toUpperCase();
+  const relacion  = document.getElementById('relacionHijo').value;
+  const stEl      = document.getElementById('matriculaHijoStatus');
 
-  // Buscar perfil del alumno por email
-  const { data: perfilAl } = await sb.from('perfiles')
-    .select('id, nombre, rol').eq('email', email).single();
+  if (!matricula) { mostrarMsgVincular('Escribe la matrícula del alumno.', 'err'); return; }
 
-  if (!perfilAl) { mostrarMsgVincular('No se encontró ningún alumno con ese correo','err'); return; }
-  if (perfilAl.rol !== 'alumno') { mostrarMsgVincular('Ese correo no pertenece a una cuenta de alumno','err'); return; }
+  stEl.style.color  = 'var(--grl)';
+  stEl.textContent  = 'Verificando matrícula…';
 
-  // Buscar registro en alumnos
-  const { data: alRec } = await sb.from('alumnos')
-    .select('id').eq('perfil_id', perfilAl.id).single();
+  // Buscar alumno por matrícula directamente en la tabla alumnos
+  const { data: alRec, error } = await sb
+    .from('alumnos')
+    .select('id, nombre, perfil_id, activo, grupo:grupos(nombre)')
+    .eq('matricula', matricula)
+    .single();
 
-  if (!alRec) { mostrarMsgVincular('El alumno no tiene perfil escolar vinculado. Pide al docente que lo vincule primero.','err'); return; }
+  if (error || !alRec) {
+    stEl.style.color = 'var(--err)';
+    stEl.textContent = '✗ Matrícula no encontrada en el sistema.';
+    mostrarMsgVincular('No se encontró ningún alumno con esa matrícula.', 'err');
+    return;
+  }
+
+  if (!alRec.activo) {
+    stEl.style.color = 'var(--err)';
+    stEl.textContent = '✗ Alumno inactivo — contacta a la administración.';
+    mostrarMsgVincular('Este alumno aparece como inactivo en el sistema.', 'err');
+    return;
+  }
+
+  if (!alRec.perfil_id) {
+    stEl.style.color = 'var(--warn)';
+    stEl.textContent = `⚠ ${alRec.nombre} — aún no ha creado su cuenta en TEBAM Digital.`;
+    mostrarMsgVincular(
+      'La matrícula existe, pero el alumno todavía no ha creado su cuenta. ' +
+      'Puedes vincularlo ahora y cuando él se registre quedará conectado automáticamente.',
+      'warn'
+    );
+    // Permitir vincular aunque no tenga perfil_id todavía
+  } else {
+    stEl.style.color = 'var(--ok)';
+    stEl.textContent = `✓ ${alRec.nombre}${alRec.grupo?.nombre ? ' · ' + alRec.grupo.nombre : ''}`;
+  }
+
+  // Verificar que no esté ya vinculado
+  const { data: yaVinculado } = await sb
+    .from('tutores')
+    .select('id')
+    .eq('padre_id', Auth.user.id)
+    .eq('alumno_id', alRec.id)
+    .single();
+
+  if (yaVinculado) {
+    mostrarMsgVincular(`Ya tienes vinculado a ${alRec.nombre}.`, 'err');
+    stEl.textContent = '';
+    return;
+  }
 
   await DB.tutores.vincular({ padre_id: Auth.user.id, alumno_id: alRec.id, relacion });
-  mostrarMsgVincular(`✓ Vinculado correctamente con ${perfilAl.nombre}`, 'ok');
-  document.getElementById('emailHijo').value = '';
+
+  mostrarMsgVincular(`✓ ${alRec.nombre} vinculado correctamente.`, 'ok');
+  stEl.textContent = '';
+  document.getElementById('matriculaHijo').value = '';
 
   await cargarHijos();
   await renderHijosVinculados();
@@ -701,7 +746,7 @@ async function vincularHijo() {
 function mostrarMsgVincular(msg, tipo) {
   const el = document.getElementById('vincularMsg');
   el.style.display = 'block';
-  el.style.color = tipo==='ok' ? 'var(--ok)' : 'var(--err)';
+  el.style.color = tipo === 'ok' ? 'var(--ok)' : tipo === 'warn' ? 'var(--warn)' : 'var(--err)';
   el.textContent = msg;
 }
 

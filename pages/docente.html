@@ -50,7 +50,7 @@
 <div class="main">
   <div class="topbar">
     <div class="crumb" id="crumb"><span class="crumb-cur">Ciclos Escolares</span></div>
-    <div id="topbarR"><button class="btn btn-y" onclick="UI.openModal('mCiclo')">+ Nuevo Ciclo</button></div>
+    <div id="topbarR"></div>
   </div>
   <div class="content">
 
@@ -264,7 +264,7 @@ let csvRows=[], csvHeaders=[], realtimeChannel=null;
 (async()=>{
   UI.initModals();
   // Admin también puede usar el portal docente
-  const perfil = await Auth.init(null); // null = acepta cualquier rol
+  const perfil = await Auth.init('docente'); // admin también pasa por la excepción en auth.js
   if (!perfil) return;
   if (perfil.rol !== 'docente' && perfil.rol !== 'admin') {
     redirectByRol(perfil.rol); return;
@@ -282,10 +282,11 @@ let csvRows=[], csvHeaders=[], realtimeChannel=null;
 async function navTo(view){
   UI.showView('view-'+view);
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  const esAdmin = Auth.perfil?.rol === 'admin';
   if(view==='ciclos'){
     document.getElementById('nav-ciclos').classList.add('active');
     UI.setBreadcrumb([{label:'Ciclos Escolares'}]);
-    UI.setTopbar([{label:'+ Nuevo Ciclo',action:"UI.openModal('mCiclo')"}]);
+    UI.setTopbar(esAdmin ? [{label:'+ Nuevo Ciclo',action:"UI.openModal('mCiclo')"}] : []);
     CUR={ciclo:null,grupo:null,materia:null};
     ['nav-grupos','nav-materias','nav-comunicados'].forEach(id=>document.getElementById(id).style.display='none');
     await loadCiclos();
@@ -293,7 +294,7 @@ async function navTo(view){
   if(view==='grupos'){
     document.getElementById('nav-grupos').classList.add('active');
     UI.setBreadcrumb([{label:'Ciclos',action:"navTo('ciclos')"},{label:CUR.ciclo?.nombre}]);
-    UI.setTopbar([{label:'+ Nuevo Grupo',action:"UI.openModal('mGrupo')"}]);
+    UI.setTopbar(esAdmin ? [{label:'+ Nuevo Grupo',action:"UI.openModal('mGrupo')"}] : []);
     await loadGrupos();
   }
   if(view==='materias'){
@@ -318,12 +319,12 @@ async function loadCiclos(){
   UI.showLoader('ciclosLoader',false);
   document.getElementById('ciclosGrid').style.display='grid';
   const g=document.getElementById('ciclosGrid');
-  if(!ciclos.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🗓️</div><p>Sin ciclos. ¡Crea el primero!</p></div>`;return;}
+  if(!ciclos.length){g.innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">🗓️</div><p>${Auth.perfil?.rol==='admin'?'Sin ciclos. ¡Crea el primero desde aquí!':'Sin ciclos creados. Contacta al administrador.'}</p></div>`;return;}
   g.innerHTML=ciclos.map(c=>`
     <div class="card" onclick="abrirCiclo('${c.id}','${UI.esc(c.nombre)}')">
       <div class="card-top">
         <span class="badge ${c.activo?'badge-y':'badge-dim'}">${c.activo?'ACTIVO':'CERRADO'}</span>
-        <button class="card-del" onclick="event.stopPropagation();eliminarCiclo('${c.id}')">🗑</button>
+        ${Auth.perfil?.rol==='admin'?`<button class="card-del" onclick="event.stopPropagation();eliminarCiclo('${c.id}')">🗑</button>`:''}
       </div>
       <div class="card-name">${UI.esc(c.nombre)}</div>
       <div class="card-sub">${c.fecha_inicio?c.fecha_inicio+' → '+c.fecha_fin:'Sin fechas'}</div>
@@ -360,13 +361,13 @@ async function loadGrupos(){
     <div class="card" onclick="abrirGrupo('${g.id}','${UI.esc(g.nombre)}','${g.turno}')">
       <div class="card-top">
         <span class="badge ${tBadge[g.turno]||'badge-dim'}">${g.turno.toUpperCase()}</span>
-        <button class="card-del" onclick="event.stopPropagation();eliminarGrupo('${g.id}')">🗑</button>
+        ${Auth.perfil?.rol==='admin'?`<button class="card-del" onclick="event.stopPropagation();eliminarGrupo('${g.id}')">🗑</button>`:''}
       </div>
       <div class="card-name">${UI.esc(g.nombre)}</div>
       <div class="card-sub">${g.descripcion||'Sin descripción'}</div>
       <div class="card-stats"><span>${g.alumnos?.[0]?.count??0} Alumnos</span><span>${g.grupo_docentes?.[0]?.count??0} Docentes</span></div>
     </div>`).join('')
-    :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">👥</div><p>Sin grupos. ¡Crea el primero!</p></div>`;
+    :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">👥</div><p>${Auth.perfil?.rol==='admin'?'Sin grupos. ¡Crea el primero!':'Sin grupos asignados en este ciclo.'}</p></div>`;
 }
 async function abrirGrupo(id,nombre,turno){
   CUR.grupo={id,nombre,turno};
