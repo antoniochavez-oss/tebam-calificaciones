@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="../css/main.css"/>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="../js/config.js"></script>
-  <script src="../js/supabase-client.js"></script>  
+  <script src="../js/supabase-client.js"></script>
   <script src="../js/auth.js"></script>
   <script src="../js/db.js"></script>
   <script src="../js/ui.js"></script>
@@ -34,6 +34,7 @@
     <div class="nav-item" id="nav-materias" style="display:none" onclick="navTo('materias')"><span class="ico">📚</span> <span id="nav-materias-lbl">Materias</span></div>
     <div class="sb-sec">Herramientas</div>
     <div class="nav-item" id="nav-comunicados" style="display:none" onclick="navTo('comunicados')"><span class="ico">📢</span> Comunicados</div>
+    <div class="nav-item" id="nav-admin" style="display:none" onclick="location.href='./admin.html'"><span class="ico">🛡️</span> Panel Admin</div>
   </nav>
   <div class="sb-foot">
     <div class="user-avatar">P</div>
@@ -262,9 +263,19 @@ let csvRows=[], csvHeaders=[], realtimeChannel=null;
 /* ══ INIT ══ */
 (async()=>{
   UI.initModals();
-  const perfil = await Auth.init('docente');
+  // Admin también puede usar el portal docente
+  const perfil = await Auth.init(null); // null = acepta cualquier rol
+  if (!perfil) return;
+  if (perfil.rol !== 'docente' && perfil.rol !== 'admin') {
+    redirectByRol(perfil.rol); return;
+  }
   if(!perfil) return;
   await loadCiclos();
+
+  // Mostrar acceso al panel admin si corresponde
+  if (perfil.rol === 'admin') {
+    document.getElementById('nav-admin').style.display = 'flex';
+  }
 })();
 
 /* ══ NAV ══ */
