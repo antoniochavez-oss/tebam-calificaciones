@@ -200,7 +200,7 @@ const DB = window.DB = {
     async guardar({ alumno_id, materia_id, fecha, estado }) {
       const { data, error } = await sb.from('asistencia')
         .upsert({ alumno_id, materia_id, fecha, estado },
-                 { onConflict: 'alumno_id,fecha' })
+                 { onConflict: 'alumno_id,materia_id,fecha' })
         .select().single();
       if (error) throw error;
       return data;
@@ -212,7 +212,7 @@ const DB = window.DB = {
     async marcarTodos(alumnos, materia_id, fecha, estado) {
       const rows = alumnos.map(al => ({ alumno_id: al.id, materia_id, fecha, estado }));
       const { data, error } = await sb.from('asistencia')
-        .upsert(rows, { onConflict: 'alumno_id,fecha' }).select();
+        .upsert(rows, { onConflict: 'alumno_id,materia_id,fecha' }).select();
       if (error) throw error;
       return data || [];
     }
