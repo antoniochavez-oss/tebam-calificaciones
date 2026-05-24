@@ -1,103 +1,104 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TEBAM Digital — Acceso</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <!-- PWA -->
-  <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#1a2010" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="TEBAM" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <script type="importmap">{"imports":{"@supabase/supabase-js":"https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"}}</script>
   <style>
     :root{
       --gd:#1a2010;--gm:#2e3618;--gl:#404d20;
-      --y:#f1e640;--yd:rgba(241,230,64,.12);
+      --y:#f1e640;--yd:#c9bf2a;--yg:rgba(241,230,64,.2);
       --gr:#7a8560;--grl:#b8c49a;--w:#edeee8;
-      --err:#e05a4e;--ok:#72c96f;
+      --ok:#72c96f;--err:#e05a4e;--warn:#e8a020;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{
       font-family:'DM Sans',sans-serif;
-      background:var(--gd);
-      min-height:100vh;
-      display:flex;align-items:center;justify-content:center;
-      padding:20px;
+      background:var(--gd);min-height:100vh;
+      display:flex;align-items:center;justify-content:center;padding:20px;
     }
-    body::before{
-      content:'';position:fixed;inset:0;
-      background:
-        radial-gradient(ellipse 60% 50% at 20% 80%, rgba(241,230,64,.06) 0%, transparent 60%),
-        radial-gradient(ellipse 40% 40% at 80% 20%, rgba(114,201,111,.04) 0%, transparent 60%);
-      pointer-events:none;
-    }
-
     .card{
-      background:linear-gradient(160deg, var(--gl) 0%, var(--gm) 100%);
-      border:1px solid rgba(241,230,64,.18);
-      border-radius:20px;
-      padding:36px 32px;
-      width:100%;max-width:400px;
-      box-shadow:0 24px 60px rgba(0,0,0,.5);
-      position:relative;z-index:1;
+      background:linear-gradient(160deg,var(--gl),var(--gm));
+      border:1px solid var(--yg);border-radius:20px;
+      padding:34px 30px;width:100%;max-width:420px;
     }
+    .brand{font-size:10px;letter-spacing:.14em;color:var(--gr);text-transform:uppercase;margin-bottom:4px}
+    .logo{font-size:26px;font-weight:700;color:var(--y);margin-bottom:4px}
+    .sub{font-size:13px;color:var(--grl);margin-bottom:22px;line-height:1.5}
 
-    .brand{font-size:10px;letter-spacing:.14em;color:var(--gr);text-transform:uppercase;margin-bottom:5px}
-    .logo{font-size:26px;font-weight:700;color:var(--y);margin-bottom:3px;letter-spacing:-.3px}
-    .sub{font-size:13px;color:var(--grl);margin-bottom:26px;min-height:20px;transition:.2s}
+    /* ── Tabs login / registro ── */
+    .tabs{display:flex;background:rgba(0,0,0,.25);border-radius:10px;padding:3px;margin-bottom:20px}
+    .tab{flex:1;padding:8px;border:none;border-radius:8px;background:transparent;
+         font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+         color:var(--grl);cursor:pointer;transition:.15s}
+    .tab.active{background:var(--gl);color:var(--y)}
 
-    /* ── SWITCH ── */
-    .switch-wrap{
-      display:flex;
-      background:rgba(0,0,0,.3);
-      border-radius:10px;padding:4px;gap:3px;
-      margin-bottom:24px;
+    /* ── Selector de tipo de cuenta ── */
+    .tipo-wrap{margin-bottom:16px}
+    .tipo-label{font-size:11px;font-weight:600;color:var(--grl);letter-spacing:.04em;
+                text-transform:uppercase;margin-bottom:8px;display:block}
+    .tipo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .tipo-btn{
+      padding:10px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.1);
+      background:rgba(0,0,0,.2);color:var(--grl);font-family:'DM Sans',sans-serif;
+      font-size:12px;font-weight:500;cursor:pointer;transition:.15s;text-align:center;
+      display:flex;flex-direction:column;align-items:center;gap:4px
     }
-    .sw-btn{
-      flex:1;padding:9px 8px;border:none;border-radius:7px;
-      font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
-      cursor:pointer;transition:.2s;
-      color:var(--grl);background:transparent;
-    }
-    .sw-btn.active{background:var(--y);color:var(--gd);}
-    .sw-btn:not(.active):hover{color:var(--w);}
+    .tipo-btn .tipo-ico{font-size:18px}
+    .tipo-btn.active{border-color:var(--y);background:rgba(241,230,64,.08);color:var(--y)}
+    .tipo-btn:hover:not(.active){border-color:var(--grl)}
 
-    /* ── MENSAJES ── */
-    .msg{
-      border-radius:9px;padding:10px 14px;
-      font-size:13px;margin-bottom:14px;display:none;line-height:1.4;
+    /* ── Campos ── */
+    .field{margin-bottom:13px}
+    label{display:block;font-size:11px;font-weight:600;color:var(--grl);
+          margin-bottom:5px;letter-spacing:.04em;text-transform:uppercase}
+    input,select{
+      width:100%;padding:11px 14px;border-radius:9px;
+      border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.25);
+      color:var(--w);font-family:'DM Sans',sans-serif;font-size:14px;
+      outline:none;transition:.15s;appearance:none;
     }
+    input:focus,select:focus{border-color:var(--y);background:rgba(0,0,0,.35)}
+    input::placeholder{color:var(--gr)}
+    select option{background:var(--gm);color:var(--w)}
+
+    /* ── Código de invitación ── */
+    .code-field{position:relative}
+    .code-field input{text-transform:uppercase;letter-spacing:.08em;font-weight:600;padding-right:90px}
+    .code-status{
+      position:absolute;right:12px;top:50%;transform:translateY(-50%);
+      font-size:11px;font-weight:600;
+    }
+    .code-status.ok{color:var(--ok)}
+    .code-status.err{color:var(--err)}
+    .code-status.checking{color:var(--grl)}
+
+    /* ── Fortaleza contraseña ── */
+    .strength{margin-top:6px}
+    .strength-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+    .strength-fill{height:100%;border-radius:2px;transition:.3s}
+    .strength-txt{font-size:11px;color:var(--gr);margin-top:4px}
+
+    /* ── Mensajes ── */
+    .msg{border-radius:9px;padding:10px 14px;font-size:13px;margin-bottom:12px;display:none;line-height:1.5}
     .msg.show{display:block}
     .msg-err{background:rgba(224,90,78,.12);color:var(--err);border:1px solid rgba(224,90,78,.25)}
-    .msg-ok {background:rgba(114,201,111,.12);color:var(--ok); border:1px solid rgba(114,201,111,.25)}
+    .msg-ok{background:rgba(114,201,111,.12);color:var(--ok);border:1px solid rgba(114,201,111,.25)}
+    .msg-warn{background:rgba(232,160,32,.12);color:var(--warn);border:1px solid rgba(232,160,32,.25)}
 
-    /* ── FIELDS ── */
-    .field{margin-bottom:14px}
-    label{display:block;font-size:11px;font-weight:600;color:var(--grl);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
-    input{
-      width:100%;padding:11px 14px;border-radius:9px;
-      border:1px solid rgba(255,255,255,.1);
-      background:rgba(0,0,0,.25);color:var(--w);
-      font-family:'DM Sans',sans-serif;font-size:14px;
-      outline:none;transition:.15s;
+    /* ── Info contextual ── */
+    .info-box{
+      background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.06);
+      border-radius:9px;padding:10px 13px;font-size:12px;color:var(--grl);
+      line-height:1.55;margin-bottom:13px;display:none
     }
-    input:focus{border-color:var(--y);background:rgba(0,0,0,.35)}
-    input::placeholder{color:var(--gr)}
+    .info-box.show{display:block}
 
-    /* ── STRENGTH ── */
-    .strength{margin-top:7px}
-    .strength-bar{height:3px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
-    .strength-fill{height:100%;border-radius:2px;width:0%;transition:.3s}
-    .strength-txt{font-size:11px;color:var(--gr);margin-top:4px;min-height:14px}
-
-    /* ── BOTÓN ── */
+    /* ── Botón ── */
     .btn{
-      width:100%;padding:13px;margin-top:8px;
+      width:100%;padding:13px;margin-top:4px;
       background:var(--y);color:var(--gd);
       border:none;border-radius:10px;
       font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;
@@ -106,22 +107,27 @@
     }
     .btn:hover:not(:disabled){opacity:.88;transform:translateY(-1px)}
     .btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
-
-    /* ── SPINNER ── */
-    .spin{
-      width:16px;height:16px;
-      border:2px solid var(--gd);border-top-color:transparent;
-      border-radius:50%;animation:sp .6s linear infinite;display:none;
-    }
+    .spin{width:16px;height:16px;border:2px solid var(--gd);border-top-color:transparent;
+          border-radius:50%;animation:sp .6s linear infinite;display:none}
     @keyframes sp{to{transform:rotate(360deg)}}
 
-    /* ── HINT ── */
-    .hint{font-size:12px;color:var(--gr);text-align:center;margin-top:18px;line-height:1.5}
-    .hint span{color:var(--grl);text-decoration:underline;cursor:pointer}
-    .hint span:hover{color:var(--y)}
+    /* ── Hint y links ── */
+    .hint{font-size:12px;color:var(--gr);text-align:center;margin-top:16px;line-height:1.6}
+    .link{color:var(--grl);text-decoration:underline;cursor:pointer}
+    .link:hover{color:var(--y)}
 
-    /* campos condicionales */
-    .reg-only{display:none}
+    /* ── Reset form ── */
+    .reset-wrap{margin-top:12px;padding:14px;background:rgba(0,0,0,.2);
+                border-radius:10px;border:1px solid var(--yg);display:none}
+    .reset-wrap input{margin-bottom:8px}
+    .btn-sm{width:100%;padding:9px;background:transparent;color:var(--y);
+            border:1px solid var(--yg);border-radius:8px;
+            font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;
+            cursor:pointer;transition:.15s}
+    .btn-sm:hover{background:rgba(241,230,64,.08)}
+
+    /* ── Secciones condicionales ── */
+    .reg-only,.tipo-only-alumno,.tipo-only-docente,.tipo-only-padre{display:none}
   </style>
 </head>
 <body>
@@ -130,26 +136,73 @@
   <div class="logo">TEBAM Digital</div>
   <p class="sub" id="sub">Accede con tu correo institucional</p>
 
-  <!-- Switch -->
-  <div class="switch-wrap">
-    <button class="sw-btn active" id="swL" onclick="setMode('login')">Iniciar Sesión</button>
-    <button class="sw-btn"        id="swR" onclick="setMode('reg')">Crear Cuenta</button>
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" id="tabL" onclick="setMode('login')">Iniciar sesión</button>
+    <button class="tab"        id="tabR" onclick="setMode('reg')">Crear cuenta</button>
   </div>
 
-  <!-- Mensajes -->
-  <div class="msg msg-err" id="mErr"></div>
-  <div class="msg msg-ok"  id="mOk"></div>
+  <!-- Mensajes globales -->
+  <div class="msg msg-err"  id="mErr"></div>
+  <div class="msg msg-ok"   id="mOk"></div>
+
+  <!-- ═══════════════════════════════════════════════════
+       SECCIÓN REGISTRO — Selector de tipo de cuenta
+  ═══════════════════════════════════════════════════ -->
+  <div class="tipo-wrap reg-only" id="fTipo">
+    <span class="tipo-label">¿Cómo quieres registrarte?</span>
+    <div class="tipo-grid">
+      <button class="tipo-btn" id="tipoAlumno" onclick="setTipo('alumno')">
+        <span class="tipo-ico">🎓</span>Alumno
+      </button>
+      <button class="tipo-btn" id="tipoDocente" onclick="setTipo('docente')">
+        <span class="tipo-ico">📚</span>Docente
+      </button>
+      <button class="tipo-btn" id="tipoPadre" onclick="setTipo('padre')">
+        <span class="tipo-ico">👨‍👧</span>Padre / Tutor
+      </button>
+    </div>
+  </div>
+
+  <!-- Info contextual por tipo -->
+  <div class="info-box tipo-only-alumno" id="infoAlumno">
+    Ingresa la matrícula que aparece en tu credencial escolar. El sistema verificará que estés registrado en el plantel antes de crear tu cuenta.
+  </div>
+  <div class="info-box tipo-only-docente" id="infoDocente">
+    Necesitas un código de invitación proporcionado por el administrador del plantel. Si no lo tienes, comunícate con la dirección académica.
+  </div>
+  <div class="info-box tipo-only-padre" id="infoPadre">
+    Crea tu cuenta y vincula a tu hijo(a) desde el portal usando su matrícula escolar.
+  </div>
 
   <!-- Nombre (solo registro) -->
   <div class="field reg-only" id="fNombre">
-    <label>Nombre Completo</label>
+    <label>Nombre completo</label>
     <input id="nombre" type="text" placeholder="Ej. Juan García López" autocomplete="name"/>
+  </div>
+
+  <!-- ── Campo matrícula — solo alumno ── -->
+  <div class="field tipo-only-alumno" id="fMatricula">
+    <label>Matrícula escolar</label>
+    <input id="matricula" type="text" placeholder="Ej. 2024TEBAM001" autocomplete="off"
+           oninput="validarMatricula(this.value)"/>
+    <div class="strength-txt" id="matriculaStatus" style="margin-top:5px"></div>
+  </div>
+
+  <!-- ── Campo código invitación — solo docente ── -->
+  <div class="field tipo-only-docente" id="fCodigo">
+    <label>Código de invitación</label>
+    <div class="code-field">
+      <input id="codigo" type="text" placeholder="DOC-XXXX" maxlength="8" autocomplete="off"
+             oninput="validarCodigo(this.value)"/>
+      <span class="code-status" id="codigoStatus"></span>
+    </div>
   </div>
 
   <!-- Email -->
   <div class="field">
-    <label>Correo Institucional</label>
-    <input id="email" type="email" placeholder="usuario@tebam.edu.mx" autocomplete="email"/>
+    <label>Correo electrónico</label>
+    <input id="email" type="email" placeholder="tu@correo.com" autocomplete="email"/>
   </div>
 
   <!-- Contraseña -->
@@ -162,36 +215,35 @@
     </div>
   </div>
 
-  <!-- Confirmar (solo registro) -->
+  <!-- Confirmar — solo registro -->
   <div class="field reg-only" id="fConf">
-    <label>Confirmar Contraseña</label>
+    <label>Confirmar contraseña</label>
     <input id="conf" type="password" placeholder="••••••••" autocomplete="new-password"/>
   </div>
 
-  <!-- Botón -->
+  <!-- Botón principal -->
   <button class="btn" id="btn">
-    <span id="btnTxt">Entrar al Portal</span>
+    <span id="btnTxt">Entrar al portal</span>
     <div class="spin" id="spin"></div>
   </button>
 
   <!-- Recuperar contraseña -->
-  <div id="resetWrap" style="margin-top:14px;text-align:center">
-    <span style="font-size:12px;color:var(--gr)">¿Olvidaste tu contraseña?
-      <span onclick="toggleReset()" style="color:var(--grl);text-decoration:underline;cursor:pointer">Recuperar acceso</span>
+  <div id="resetWrap" style="margin-top:12px;text-align:center">
+    <span class="hint">¿Olvidaste tu contraseña?
+      <span class="link" onclick="toggleReset()">Recuperar acceso</span>
     </span>
   </div>
-  <div id="resetForm" style="display:none;margin-top:10px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--yd)">
-    <div style="font-size:12px;color:var(--grl);margin-bottom:10px">Ingresa tu correo y te enviaremos un link para restablecer tu contraseña.</div>
-    <input class="inp" id="resetEmail" type="email" placeholder="tu@correo.com" style="margin-bottom:8px"/>
-    <button class="btn" style="width:100%;padding:9px;background:var(--yd);color:var(--y);justify-content:center;font-size:13px;border:1px solid var(--yg)" onclick="enviarReset()">
-      Enviar link de recuperación
-    </button>
-    <div id="resetMsg" style="display:none;margin-top:8px;font-size:12px;text-align:center"></div>
+  <div class="reset-wrap" id="resetForm">
+    <div style="font-size:12px;color:var(--grl);margin-bottom:10px">
+      Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+    </div>
+    <input id="resetEmail" type="email" placeholder="tu@correo.com"/>
+    <div id="resetMsg" style="display:none;font-size:12px;text-align:center;margin-bottom:8px"></div>
+    <button class="btn-sm" onclick="enviarReset()">Enviar enlace de recuperación</button>
   </div>
 
-  <!-- Hint -->
   <p class="hint" id="hint">
-    ¿No tienes cuenta? <span onclick="setMode('reg')">Crear cuenta nueva</span>
+    ¿No tienes cuenta? <span class="link" onclick="setMode('reg')">Crear cuenta nueva</span>
   </p>
 </div>
 
@@ -214,88 +266,216 @@ const URLS = {
   admin:   `${BASE}/pages/admin.html`,
 };
 
-/* Desregistrar Service Worker previo */
+/* ── Desregistrar Service Worker previo ── */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(r => r.unregister());
-  });
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
 }
 
-/* Redirigir si ya hay sesión al portal correcto según rol */
-const { data:{ session } } = await sb.auth.getSession();
+/* ── Redirigir si ya hay sesión ── */
+const { data: { session } } = await sb.auth.getSession();
 if (session) {
   const { data: p } = await sb.from('perfiles').select('rol').eq('id', session.user.id).single();
-  // Admin entra al portal docente (que incluye acceso a panel admin)
-  const dest = p?.rol === 'admin' ? URLS.docente : (URLS[p?.rol] || URLS.docente);
-  location.href = dest;
+  location.href = p?.rol === 'admin' ? URLS.docente : (URLS[p?.rol] || URLS.docente);
 }
 
-/* ── Recuperación de contraseña ── */
-window.toggleReset = () => {
-  const f = document.getElementById('resetForm');
-  f.style.display = f.style.display === 'none' ? 'block' : 'none';
-};
-
-window.enviarReset = async () => {
-  const email = document.getElementById('resetEmail').value.trim();
-  const msgEl = document.getElementById('resetMsg');
-  if (!email) { mostrarResetMsg('Escribe tu correo', 'err'); return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://tebam-calificaciones.pages.dev/pages/reset-password.html'
-  });
-  if (error) { mostrarResetMsg('Error: ' + error.message, 'err'); return; }
-  mostrarResetMsg('✓ Link enviado. Revisa tu bandeja de entrada.', 'ok');
-  document.getElementById('resetEmail').value = '';
-};
-
-function mostrarResetMsg(msg, tipo) {
-  const el = document.getElementById('resetMsg');
-  el.style.display = 'block';
-  el.style.color = tipo === 'ok' ? 'var(--ok)' : 'var(--err)';
-  el.textContent = msg;
-}
-
-let MODE = 'login';
+/* ════════════════════════════════════════════════════
+   Estado global
+════════════════════════════════════════════════════ */
+let MODE = 'login';   // 'login' | 'reg'
+let TIPO = null;       // 'alumno' | 'docente' | 'padre'
+let matriculaValida = false;
+let codigoValido    = false;
+let validandoCodigo = false;
+let debounceTimer   = null;
 
 const $ = id => document.getElementById(id);
 
-/* ─── Helpers mensajes ─── */
-const showErr = msg => { hideMsg(); $('mErr').textContent = msg; $('mErr').classList.add('show'); };
-const showOk  = msg => { hideMsg(); $('mOk').textContent  = msg; $('mOk').classList.add('show'); };
-const hideMsg = ()  => { $('mErr').classList.remove('show'); $('mOk').classList.remove('show'); };
-
-/* ─── Loading ─── */
-const setLoading = on => {
-  $('btn').disabled = on;
-  $('spin').style.display = on ? 'block' : 'none';
+/* ════════════════════════════════════════════════════
+   Helpers UI
+════════════════════════════════════════════════════ */
+const showErr  = msg => { hideMsg(); $('mErr').textContent = msg; $('mErr').classList.add('show'); };
+const showOk   = msg => { hideMsg(); $('mOk').textContent  = msg; $('mOk').classList.add('show'); };
+const hideMsg  = ()  => {
+  $('mErr').classList.remove('show');
+  $('mOk').classList.remove('show');
 };
 
-/* ─── Switch modo ─── */
+const setLoading = on => {
+  $('btn').disabled          = on;
+  $('spin').style.display    = on ? 'block' : 'none';
+};
+
+/* ════════════════════════════════════════════════════
+   Modo login / registro
+════════════════════════════════════════════════════ */
 window.setMode = mode => {
   MODE = mode; hideMsg();
   const isReg = mode === 'reg';
 
-  $('swL').classList.toggle('active', !isReg);
-  $('swR').classList.toggle('active',  isReg);
+  $('tabL').classList.toggle('active', !isReg);
+  $('tabR').classList.toggle('active',  isReg);
 
-  document.querySelectorAll('.reg-only').forEach(el => el.style.display = isReg ? 'block' : 'none');
+  document.querySelectorAll('.reg-only').forEach(el =>
+    el.style.display = isReg ? 'block' : 'none'
+  );
 
-  $('sub').textContent    = isReg ? 'Crea tu cuenta docente TEBAM' : 'Accede con tu correo institucional';
-  $('btnTxt').textContent = isReg ? 'Crear Cuenta' : 'Entrar al Portal';
-  $('strength').style.display    = isReg ? 'block' : 'none';
-  $('pass').autocomplete  = isReg ? 'new-password' : 'current-password';
-  $('pass').placeholder   = isReg ? 'Mínimo 8 caracteres' : '••••••••';
-  $('hint').innerHTML     = isReg
-    ? '¿Ya tienes cuenta? <span onclick="setMode(\'login\')">Iniciar sesión</span>'
-    : '¿No tienes cuenta? <span onclick="setMode(\'reg\')">Crear cuenta nueva</span>';
+  // Ocultar campos específicos de tipo hasta que se elija
+  ['tipo-only-alumno','tipo-only-docente','tipo-only-padre'].forEach(c =>
+    document.querySelectorAll('.'+c).forEach(el => el.style.display = 'none')
+  );
+
+  if (!isReg) TIPO = null;
+
+  $('sub').textContent     = isReg ? 'Selecciona tu tipo de cuenta' : 'Accede con tu correo electrónico';
+  $('btnTxt').textContent  = isReg ? 'Crear cuenta' : 'Entrar al portal';
+  $('strength').style.display     = isReg ? 'block' : 'none';
+  $('pass').autocomplete          = isReg ? 'new-password' : 'current-password';
+  $('pass').placeholder           = isReg ? 'Mínimo 8 caracteres' : '••••••••';
+  $('hint').innerHTML = isReg
+    ? '¿Ya tienes cuenta? <span class="link" onclick="setMode(\'login\')">Iniciar sesión</span>'
+    : '¿No tienes cuenta? <span class="link" onclick="setMode(\'reg\')">Crear cuenta nueva</span>';
 };
 
-/* ─── Fortaleza contraseña ─── */
+/* ════════════════════════════════════════════════════
+   Selector de tipo de cuenta
+════════════════════════════════════════════════════ */
+window.setTipo = tipo => {
+  TIPO = tipo;
+  hideMsg();
+  matriculaValida = false;
+  codigoValido    = false;
+
+  // Botones
+  ['tipoAlumno','tipoDocente','tipoPadre'].forEach(id => $( id).classList.remove('active'));
+  const mapa = { alumno:'tipoAlumno', docente:'tipoDocente', padre:'tipoPadre' };
+  $(mapa[tipo]).classList.add('active');
+
+  // Mostrar / ocultar campos específicos
+  ['tipo-only-alumno','tipo-only-docente','tipo-only-padre'].forEach(c =>
+    document.querySelectorAll('.'+c).forEach(el => el.style.display = 'none')
+  );
+  document.querySelectorAll(`.tipo-only-${tipo}`).forEach(el => el.style.display = 'block');
+
+  // Reset estado de validación
+  $('matriculaStatus').textContent = '';
+  $('codigoStatus').textContent    = '';
+  if ($('matricula')) $('matricula').value = '';
+  if ($('codigo'))    $('codigo').value    = '';
+
+  $('sub').textContent = {
+    alumno:  'Registro de alumno — valida tu matrícula',
+    docente: 'Registro de docente — ingresa tu código',
+    padre:   'Registro de padre / tutor de familia',
+  }[tipo];
+};
+
+/* ════════════════════════════════════════════════════
+   Validación de matrícula (alumno)
+   — verifica que exista en BD y no tenga cuenta aún
+════════════════════════════════════════════════════ */
+window.validarMatricula = async val => {
+  const st = $('matriculaStatus');
+  matriculaValida = false;
+
+  val = val.trim().toUpperCase();
+  if ($('matricula')) $('matricula').value = val;
+
+  if (val.length < 4) {
+    st.style.color = 'var(--gr)';
+    st.textContent = '';
+    return;
+  }
+
+  st.style.color = 'var(--grl)';
+  st.textContent = 'Verificando…';
+
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    const { data, error } = await sb
+      .from('alumnos')
+      .select('id, nombre, perfil_id, activo')
+      .eq('matricula', val)
+      .single();
+
+    if (error || !data) {
+      st.style.color = 'var(--err)';
+      st.textContent = '✗ Matrícula no encontrada en el sistema';
+      matriculaValida = false;
+      return;
+    }
+    if (!data.activo) {
+      st.style.color = 'var(--err)';
+      st.textContent = '✗ Alumno inactivo — contacta a la administración';
+      matriculaValida = false;
+      return;
+    }
+    if (data.perfil_id) {
+      st.style.color = 'var(--err)';
+      st.textContent = '✗ Esta matrícula ya tiene una cuenta registrada';
+      matriculaValida = false;
+      return;
+    }
+
+    st.style.color = 'var(--ok)';
+    st.textContent = `✓ ${data.nombre}`;
+    matriculaValida = true;
+  }, 600);
+};
+
+/* ════════════════════════════════════════════════════
+   Validación de código de invitación (docente)
+════════════════════════════════════════════════════ */
+window.validarCodigo = async raw => {
+  const st  = $('codigoStatus');
+  const val = raw.trim().toUpperCase();
+  codigoValido    = false;
+  if ($('codigo')) $('codigo').value = val;
+
+  if (val.length < 8) {
+    st.textContent = '';
+    st.className   = 'code-status';
+    return;
+  }
+
+  if (validandoCodigo) return;
+  validandoCodigo = true;
+  st.textContent = 'Verificando…';
+  st.className   = 'code-status checking';
+
+  const { data, error } = await sb
+    .from('docentes_autorizados')
+    .select('id, nombre, usado')
+    .eq('codigo_invitacion', val)
+    .single();
+
+  validandoCodigo = false;
+
+  if (error || !data) {
+    st.textContent = '✗ Código inválido';
+    st.className   = 'code-status err';
+    codigoValido   = false;
+    return;
+  }
+  if (data.usado) {
+    st.textContent = '✗ Código ya utilizado';
+    st.className   = 'code-status err';
+    codigoValido   = false;
+    return;
+  }
+
+  st.textContent = `✓ ${data.nombre}`;
+  st.className   = 'code-status ok';
+  codigoValido   = true;
+};
+
+/* ════════════════════════════════════════════════════
+   Fortaleza de contraseña
+════════════════════════════════════════════════════ */
 $('pass').addEventListener('input', () => {
   if (MODE !== 'reg') return;
   const v = $('pass').value;
   let s = 0;
-  if (v.length >= 8)  s++;
+  if (v.length >= 8) s++;
   if (v.length >= 12) s++;
   if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++;
   if (/[0-9]/.test(v)) s++;
@@ -303,24 +483,28 @@ $('pass').addEventListener('input', () => {
   s = Math.min(s, 4);
   const cols  = ['#e05a4e','#e05a4e','#f1e640','#f1e640','#72c96f'];
   const texts = ['Muy débil','Débil','Regular','Buena','Fuerte ✓'];
-  $('sFill').style.cssText = `width:${(s/4)*100}%; background:${cols[s]}`;
-  $('sTxt').textContent = v.length ? texts[s] : '';
+  $('sFill').style.cssText = `width:${(s/4)*100}%;background:${cols[s]}`;
+  $('sTxt').textContent    = v.length ? texts[s] : '';
 });
 
-/* ─── Enter ─── */
+/* ── Enter en cualquier campo ── */
 document.querySelectorAll('input').forEach(i =>
   i.addEventListener('keydown', e => { if (e.key === 'Enter') $('btn').click(); })
 );
 
-/* ─── Acción principal ─── */
+/* ════════════════════════════════════════════════════
+   Acción principal — Login / Registro
+════════════════════════════════════════════════════ */
 $('btn').addEventListener('click', async () => {
   hideMsg();
   const email = $('email').value.trim();
   const pass  = $('pass').value;
-  if (!email || !pass) { showErr('Completa todos los campos.'); return; }
 
+  if (!email) { showErr('Escribe tu correo electrónico.'); return; }
+  if (!pass)  { showErr('Escribe tu contraseña.'); return; }
+
+  /* ─── LOGIN ─────────────────────────────────────── */
   if (MODE === 'login') {
-    /* LOGIN */
     setLoading(true);
     const { error } = await sb.auth.signInWithPassword({ email, password: pass });
     if (error) {
@@ -331,56 +515,115 @@ $('btn').addEventListener('click', async () => {
       };
       showErr(map[error.message] || error.message);
       setLoading(false);
-    } else {
-      const { data: rp } = await sb.from('perfiles').select('rol').eq('id', (await sb.auth.getUser()).data.user.id).single();
-      const dest = rp?.rol === 'admin' ? URLS.docente : (URLS[rp?.rol] || URLS.docente);
-      location.href = dest;
-    }
-
-  } else {
-    /* REGISTRO */
-    const nombre = $('nombre').value.trim();
-    const conf   = $('conf').value;
-
-    if (!nombre)            { showErr('Escribe tu nombre completo.'); return; }
-    if (pass.length < 8)    { showErr('La contraseña debe tener mínimo 8 caracteres.'); return; }
-    if (pass !== conf)      { showErr('Las contraseñas no coinciden.'); return; }
-
-    setLoading(true);
-
-    const { data, error } = await sb.auth.signUp({
-      email,
-      password: pass,
-      options: {
-        data: { nombre },
-        emailRedirectTo: URLS.docente,
-      },
-    });
-
-    if (error) {
-      const map = {
-        'User already registered': 'Este correo ya tiene cuenta. Inicia sesión.',
-        'Password should be at least 6 characters': 'La contraseña debe tener al menos 6 caracteres.',
-      };
-      showErr(map[error.message] || error.message);
-      setLoading(false);
       return;
     }
+    const { data: rp } = await sb.from('perfiles').select('rol')
+      .eq('id', (await sb.auth.getUser()).data.user.id).single();
+    location.href = rp?.rol === 'admin' ? URLS.docente : (URLS[rp?.rol] || URLS.docente);
+    return;
+  }
 
-    if (data.session) {
-      /* Auto-confirm activo → redirigir según rol */
-      const { data: rp } = await sb.from('perfiles').select('rol').eq('id', data.session.user.id).single();
-      const dest = rp?.rol === 'admin' ? URLS.docente : (URLS[rp?.rol] || URLS.docente);
-      location.href = dest;
-    } else {
-      /* Requiere confirmación por correo */
-      showOk('✓ Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.');
-      setLoading(false);
-      setMode('login');
-      $('email').value = email;
+  /* ─── REGISTRO ──────────────────────────────────── */
+  if (!TIPO) { showErr('Selecciona el tipo de cuenta que quieres crear.'); return; }
+
+  const nombre = $('nombre').value.trim();
+  const conf   = $('conf').value;
+
+  if (!nombre)         { showErr('Escribe tu nombre completo.'); return; }
+  if (pass.length < 8) { showErr('La contraseña debe tener mínimo 8 caracteres.'); return; }
+  if (pass !== conf)   { showErr('Las contraseñas no coinciden.'); return; }
+
+  /* Validaciones específicas por tipo */
+  if (TIPO === 'alumno') {
+    if (!matriculaValida) {
+      showErr('Ingresa una matrícula válida antes de continuar.');
+      return;
     }
   }
+
+  if (TIPO === 'docente') {
+    if (!codigoValido) {
+      showErr('Ingresa un código de invitación válido antes de continuar.');
+      return;
+    }
+  }
+
+  setLoading(true);
+
+  /* Armar metadata según tipo */
+  const metadata = { nombre, rol: TIPO };
+  if (TIPO === 'alumno')  metadata.matricula          = $('matricula').value.trim().toUpperCase();
+  if (TIPO === 'docente') metadata.codigo_invitacion  = $('codigo').value.trim().toUpperCase();
+
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      data: metadata,
+      emailRedirectTo: URLS[TIPO] || URLS.docente,
+    },
+  });
+
+  if (error) {
+    const map = {
+      'User already registered':                     'Este correo ya tiene una cuenta. Inicia sesión.',
+      'Password should be at least 6 characters':    'La contraseña debe tener al menos 6 caracteres.',
+      'Email rate limit exceeded':                   'Demasiados intentos. Espera unos minutos.',
+    };
+    showErr(map[error.message] || error.message);
+    setLoading(false);
+    return;
+  }
+
+  if (data.session) {
+    /* Confirmación automática activa */
+    const { data: rp } = await sb.from('perfiles').select('rol')
+      .eq('id', data.session.user.id).single();
+    location.href = URLS[rp?.rol] || URLS[TIPO] || URLS.docente;
+  } else {
+    /* Requiere confirmación por correo */
+    const msgs = {
+      alumno:  '✓ Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.',
+      docente: '✓ Cuenta creada. Revisa tu correo para confirmarla. Tu código de invitación ha sido registrado.',
+      padre:   '✓ Cuenta creada. Revisa tu correo para confirmarla. Luego podrás vincular a tu hijo(a) desde el portal.',
+    };
+    showOk(msgs[TIPO] || '✓ Cuenta creada. Revisa tu correo.');
+    setLoading(false);
+    setMode('login');
+    $('email').value = email;
+  }
 });
+
+/* ════════════════════════════════════════════════════
+   Recuperar contraseña
+════════════════════════════════════════════════════ */
+window.toggleReset = () => {
+  const f = $('resetForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+};
+
+window.enviarReset = async () => {
+  const email = $('resetEmail').value.trim();
+  if (!email) { mostrarResetMsg('Escribe tu correo electrónico.', 'err'); return; }
+
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://tebam-calificaciones.pages.dev/pages/reset-password.html'
+  });
+
+  if (error) {
+    mostrarResetMsg('Error: ' + error.message, 'err');
+    return;
+  }
+  mostrarResetMsg('✓ Enlace enviado. Revisa tu bandeja de entrada.', 'ok');
+  $('resetEmail').value = '';
+};
+
+function mostrarResetMsg(msg, tipo) {
+  const el = $('resetMsg');
+  el.style.display = 'block';
+  el.style.color   = tipo === 'ok' ? 'var(--ok)' : 'var(--err)';
+  el.textContent   = msg;
+}
 </script>
 </body>
 </html>
