@@ -174,6 +174,21 @@
     <div class="spin" id="spin"></div>
   </button>
 
+  <!-- Recuperar contraseña -->
+  <div id="resetWrap" style="margin-top:14px;text-align:center">
+    <span style="font-size:12px;color:var(--gr)">¿Olvidaste tu contraseña?
+      <span onclick="toggleReset()" style="color:var(--grl);text-decoration:underline;cursor:pointer">Recuperar acceso</span>
+    </span>
+  </div>
+  <div id="resetForm" style="display:none;margin-top:10px;padding:14px;background:rgba(0,0,0,.2);border-radius:10px;border:1px solid var(--yd)">
+    <div style="font-size:12px;color:var(--grl);margin-bottom:10px">Ingresa tu correo y te enviaremos un link para restablecer tu contraseña.</div>
+    <input class="inp" id="resetEmail" type="email" placeholder="tu@correo.com" style="margin-bottom:8px"/>
+    <button class="btn" style="width:100%;padding:9px;background:var(--yd);color:var(--y);justify-content:center;font-size:13px;border:1px solid var(--yg)" onclick="enviarReset()">
+      Enviar link de recuperación
+    </button>
+    <div id="resetMsg" style="display:none;margin-top:8px;font-size:12px;text-align:center"></div>
+  </div>
+
   <!-- Hint -->
   <p class="hint" id="hint">
     ¿No tienes cuenta? <span onclick="setMode('reg')">Crear cuenta nueva</span>
@@ -199,8 +214,34 @@ if ('serviceWorker' in navigator) {
 const { data:{ session } } = await sb.auth.getSession();
 if (session) {
   const { data: p } = await sb.from('perfiles').select('rol').eq('id', session.user.id).single();
-  const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/admin.html' };
+  // Admin entra al portal docente (que incluye acceso a panel admin)
+  const portales = { docente:'./pages/docente.html', alumno:'./pages/alumno.html', padre:'./pages/padre.html', admin:'./pages/docente.html' };
   location.href = portales[p?.rol] || './pages/docente.html';
+}
+
+/* ── Recuperación de contraseña ── */
+window.toggleReset = () => {
+  const f = document.getElementById('resetForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+};
+
+window.enviarReset = async () => {
+  const email = document.getElementById('resetEmail').value.trim();
+  const msgEl = document.getElementById('resetMsg');
+  if (!email) { mostrarResetMsg('Escribe tu correo', 'err'); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://tebam-calificaciones.pages.dev/pages/reset-password.html'
+  });
+  if (error) { mostrarResetMsg('Error: ' + error.message, 'err'); return; }
+  mostrarResetMsg('✓ Link enviado. Revisa tu bandeja de entrada.', 'ok');
+  document.getElementById('resetEmail').value = '';
+};
+
+function mostrarResetMsg(msg, tipo) {
+  const el = document.getElementById('resetMsg');
+  el.style.display = 'block';
+  el.style.color = tipo === 'ok' ? 'var(--ok)' : 'var(--err)';
+  el.textContent = msg;
 }
 
 let MODE = 'login';
