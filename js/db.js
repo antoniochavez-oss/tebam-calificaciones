@@ -111,30 +111,47 @@ const DB = window.DB = {
       if (error) throw error;
       return data || [];
     },
-    async crear({ grupo_id, nombre, numero_lista }) {
+    async crear({ grupo_id, nombre, numero_lista, matricula }) {
+      const row = { grupo_id, nombre, numero_lista };
+      if (matricula) row.matricula = matricula.trim().toUpperCase();
       const { data, error } = await sb.from('alumnos')
-        .insert({ grupo_id, nombre, numero_lista })
+        .insert(row)
         .select().single();
       if (error) throw error;
       return data;
     },
     async importar(rows) {
-      // rows: [{ grupo_id, nombre, numero_lista }]
+      // rows: [{ grupo_id, nombre, numero_lista, matricula }]
+      // matricula es obligatoria — se filtra antes de llamar esta función
       const lotes = [];
       for (let i = 0; i < rows.length; i += 50) lotes.push(rows.slice(i, i + 50));
       let insertados = 0;
       for (const lote of lotes) {
-        const { data, error } = await sb.from('alumnos').insert(lote).select();
+        const filas = lote.map(r => ({
+          grupo_id:     r.grupo_id,
+          nombre:       r.nombre,
+          numero_lista: r.numero_lista ?? null,
+          matricula:    r.matricula ? r.matricula.trim().toUpperCase() : null,
+          activo:       true,
+        }));
+        const { data, error } = await sb.from('alumnos').insert(filas).select();
         if (error) throw error;
         insertados += data?.length || 0;
       }
       return insertados;
     },
+    async buscarPorMatricula(matricula) {
+      const { data, error } = await sb.from('alumnos')
+        .select('id, nombre, perfil_id, activo, matricula, grupo:grupos(nombre)')
+        .eq('matricula', matricula.trim().toUpperCase())
+        .single();
+      if (error) return null;
+      return data;
+    },
     async eliminar(id) {
       const { error } = await sb.from('alumnos').update({ activo: false }).eq('id', id);
       if (error) throw error;
     }
-  },
 
   // ─── ACTIVIDADES ───────────────────────────────────────────
   actividades: {
@@ -258,6 +275,56 @@ const DB = window.DB = {
       if (error) throw error;
       return data;
     }
+  },
+
+  // ─── DOCENTES AUTORIZADOS ──────────────────────────────────
+  docentesAutorizados: {
+    async listar() {
+      const { data, error } = await sb.from('docentes_autorizados')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async crear({ nombre, email }) {
+      // El código lo genera la función SQL generar_codigo_docente()
+      const { data: codigo, error: errCod } = await sb.rpc('generar_codigo_docente');
+      if (errCod) throw errCod;
+      const { data, error } = await sb.from('docentes_autorizados')
+        .insert({
+          nombre,
+          email: email || null,
+          codigo_invitacion: codigo,
+          created_by: Auth.user.id,
+        })
+        .select().single();
+      if (error) throw error;
+      return data; // incluye data.codigo_invitacion para mostrarlo al admin
+    },
+    async revocar(id) {
+      const { error } = await sb.from('docentes_autorizados')
+        .update({ usado: true })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    async eliminar(id) {
+      // Solo elimina si el código no ha sido usado
+      const { error } = await sb.from('docentes_autorizados')
+        .delete()
+        .eq('id', id)
+        .eq('usado', false);
+      if (error) throw error;
+    },
+    async validarCodigo(codigo) {
+      // Devuelve el registro si el código es válido y no ha sido usado
+      const { data, error } = await sb.from('docentes_autorizados')
+        .select('id, nombre, usado')
+        .eq('codigo_invitacion', codigo.trim().toUpperCase())
+        .single();
+      if (error || !data) return null;
+      if (data.usado) return null;
+      return data;
+    },
   },
 
   // ─── PERFIL ────────────────────────────────────────────────
