@@ -398,15 +398,25 @@ const DB = window.DB = {
         .eq('activo', true)
         .not('perfil_id', 'is', null);
 
-      // 3. Obtener padres vinculados a esos alumnos
-      const alumnoIds = (alumnos || []).map(a => a.perfil_id);
+      // 3. Obtener padres vinculados a alumnos de ese grupo
       let padreIds = [];
       if (alumnoIds.length > 0) {
-        const { data: tutores } = await sb
-          .from('tutores')
-          .select('padre_id, alumno:alumnos!tutores_alumno_id_fkey(perfil_id)')
-          .in('alumno.perfil_id', alumnoIds);
-        padreIds = (tutores || []).map(t => t.padre_id).filter(Boolean);
+        // Buscar IDs de alumnos (no perfil_id) para consultar tutores
+        const { data: alumnosRec } = await sb
+          .from('alumnos')
+          .select('id, perfil_id')
+          .eq('grupo_id', grupoId)
+          .eq('activo', true)
+          .not('perfil_id', 'is', null);
+
+        const alumnoIdsRec = (alumnosRec || []).map(a => a.id);
+        if (alumnoIdsRec.length > 0) {
+          const { data: tutores } = await sb
+            .from('tutores')
+            .select('padre_id')
+            .in('alumno_id', alumnoIdsRec);
+          padreIds = (tutores || []).map(t => t.padre_id).filter(Boolean);
+        }
       }
 
       // 4. Unir: creador + alumnos + padres (sin duplicados)
@@ -468,7 +478,7 @@ const DB = window.DB = {
           const { data: gd } = await sb
             .from('grupo_docentes')
             .select('grupo_id')
-            .eq('perfil_id', Auth.user.id);
+            .eq('docente_id', Auth.user.id);
           grupoIds = (gd || []).map(g => g.grupo_id);
         }
 
@@ -528,7 +538,7 @@ const DB = window.DB = {
 
       const { data: docentes } = grupoId
         ? await sb.from('grupo_docentes')
-            .select('docente:perfiles!grupo_docentes_perfil_id_fkey(id, nombre)')
+            .select('docente:perfiles!grupo_docentes_docente_id_fkey(id, nombre)')
             .eq('grupo_id', grupoId)
         : { data: [] };
 
