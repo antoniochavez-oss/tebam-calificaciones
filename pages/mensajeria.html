@@ -129,7 +129,7 @@
     .conv-empty { padding:40px 20px; text-align:center; color:var(--gr); font-size:13px; }
 
     /* ── Panel derecho — chat ── */
-    .chat-panel { flex:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .chat-panel { flex:1; display:flex; flex-direction:column; height:100vh; }
 
     .chat-topbar {
       height: var(--topbar-h);
@@ -216,9 +216,10 @@
       z-index: 1000;
       visibility: hidden;
       opacity: 0;
+      pointer-events: none;
       transition: opacity .15s, visibility .15s;
     }
-    .overlay.show { visibility: visible; opacity: 1; }
+    .overlay.show { visibility: visible; opacity: 1; pointer-events: all; }
     .modal-nuevo {
       background:var(--bg2); border:1px solid var(--bd); border-radius:14px;
       padding:22px 24px; width:100%; max-width:420px; max-height:85vh; overflow-y:auto;
@@ -322,7 +323,7 @@
       <p>Selecciona una conversación</p>
     </div>
 
-    <div id="chatContent" style="display:none; flex:1; display:none; flex-direction:column; height:100vh; overflow:hidden;">
+    <div id="chatContent" style="display:none; flex-direction:column; height:100vh; flex:1;">
       <div class="chat-topbar">
         <span class="chat-back" id="chatBack" onclick="cerrarChat()"><i class="ti ti-arrow-left" aria-hidden="true"></i></span>
         <div class="chat-ava" id="chatAva">?</div>
