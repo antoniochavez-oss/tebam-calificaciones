@@ -476,7 +476,11 @@ function renderConvList() {
 
 function nombreConv(c) {
   if (c.tipo === 'broadcast') return `📢 ${c.grupo?.nombre || 'Grupo'} — ${c.creador?.nombre || ''}`;
-  return c.creador?.id === Auth.user.id ? 'Tú' : (c.creador?.nombre || '…');
+  // En directa: mostrar el nombre del OTRO participante
+  if (c.otro) return c.otro.nombre;
+  // Fallback: si soy el creador muestro al receptor, si no muestro al creador
+  if (c.creador?.id === Auth.user.id) return '…';
+  return c.creador?.nombre || 'Desconocido';
 }
 
 function tieneNoLeidos(c) {
@@ -515,7 +519,7 @@ async function abrirConv(convId) {
   $('chatNombre').textContent = nombre;
   $('chatSubnombre').textContent = convActual.tipo === 'broadcast'
     ? `Mensaje grupal · ${convActual.grupo?.nombre || ''}`
-    : (convActual.creador?.rol || '');
+    : (convActual.otro?.rol || convActual.creador?.rol || '');
 
   // Broadcast: deshabilitar input si no eres el creador
   const esBroadcast = convActual.tipo === 'broadcast';
