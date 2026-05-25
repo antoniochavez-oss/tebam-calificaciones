@@ -354,8 +354,35 @@ const DB = window.DB = {
         .eq('perfil_id', Auth.user.id)
         .order('conversacion_id');
       if (error) throw error;
-      // Para cada conversación directa, obtener el otro participante
+
       const convs = (data || []).map(r => r.conversacion).filter(Boolean);
+
+      // Para conversaciones directas, obtener el nombre del OTRO participante
+      const directas = convs.filter(c => c.tipo === 'directa');
+      if (directas.length > 0) {
+        const convIds = directas.map(c => c.id);
+
+        // Obtener todos los participantes de esas conversaciones excepto yo
+        const { data: otrosParticipantes } = await sb
+          .from('conversacion_participantes')
+          .select('conversacion_id, perfil:perfiles!conversacion_participantes_perfil_id_fkey(id, nombre, rol)')
+          .in('conversacion_id', convIds)
+          .neq('perfil_id', Auth.user.id);
+
+        // Mapear por conversacion_id
+        const mapaOtro = {};
+        (otrosParticipantes || []).forEach(p => {
+          if (p.perfil) mapaOtro[p.conversacion_id] = p.perfil;
+        });
+
+        // Inyectar el otro participante en cada conversación directa
+        convs.forEach(c => {
+          if (c.tipo === 'directa') {
+            c.otro = mapaOtro[c.id] || null;
+          }
+        });
+      }
+
       return convs;
     },
 
