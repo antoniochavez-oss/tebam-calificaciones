@@ -654,7 +654,7 @@ async function abrirBroadcast() {
   } else {
     const { data } = await sb.from('grupo_docentes')
       .select('grupo:grupos(id, nombre, ciclo:ciclos(nombre))')
-      .eq('perfil_id', Auth.user.id);
+      .eq('docente_id', Auth.user.id);
     grupos = (data || []).map(d => d.grupo).filter(Boolean);
   }
 
