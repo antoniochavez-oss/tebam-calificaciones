@@ -172,7 +172,7 @@
     Necesitas un código de invitación proporcionado por el administrador del plantel. Si no lo tienes, comunícate con la dirección académica.
   </div>
   <div class="info-box tipo-only-padre" id="infoPadre">
-    Crea tu cuenta y vincula a tu hijo(a) desde el portal usando su matrícula escolar.
+    Ingresa la matrícula escolar de tu hijo/a para vincular tu cuenta. La matrícula aparece en su credencial o la proporciona la dirección académica. Sin matrícula válida no se puede crear la cuenta.
   </div>
 
   <!-- Nombre (solo registro) -->
@@ -197,6 +197,15 @@
              oninput="validarCodigo(this.value)"/>
       <span class="code-status" id="codigoStatus"></span>
     </div>
+  </div>
+
+  <!-- ── Campo matrícula hijo — solo padre ── -->
+  <div class="field tipo-only-padre" id="fMatriculaPadre">
+    <label>Matrícula escolar del hijo/a</label>
+    <input id="matriculaPadre" type="text" placeholder="Ej. 2024TEBAM001" autocomplete="off"
+           style="text-transform:uppercase;letter-spacing:.05em"
+           oninput="validarMatriculaPadre(this.value)"/>
+    <div class="strength-txt" id="matriculaPadreStatus" style="margin-top:5px"></div>
   </div>
 
   <!-- Email -->
@@ -284,6 +293,7 @@ if (session) {
 let MODE = 'login';   // 'login' | 'reg'
 let TIPO = null;       // 'alumno' | 'docente' | 'padre'
 let matriculaValida = false;
+let matriculaPadreValida = false;
 let codigoValido    = false;
 let validandoCodigo = false;
 let debounceTimer   = null;
@@ -358,9 +368,11 @@ window.setTipo = tipo => {
 
   // Reset estado de validación
   $('matriculaStatus').textContent = '';
+  $('matriculaPadreStatus').textContent = '';
   $('codigoStatus').textContent    = '';
-  if ($('matricula')) $('matricula').value = '';
-  if ($('codigo'))    $('codigo').value    = '';
+  if ($('matricula'))      $('matricula').value      = '';
+  if ($('matriculaPadre')) $('matriculaPadre').value = '';
+  if ($('codigo'))         $('codigo').value         = '';
 
   $('sub').textContent = {
     alumno:  'Registro de alumno — valida tu matrícula',
@@ -423,8 +435,48 @@ window.validarMatricula = async val => {
 };
 
 /* ════════════════════════════════════════════════════
-   Validación de código de invitación (docente)
+   Validación de matrícula del hijo (padre)
+   — misma lógica que alumno pero SIN verificar perfil_id
+   (el alumno puede no tener cuenta aún y aun así el padre puede vincular)
 ════════════════════════════════════════════════════ */
+window.validarMatriculaPadre = async val => {
+  const st = $('matriculaPadreStatus');
+  matriculaPadreValida = false;
+
+  val = val.trim().toUpperCase();
+  if ($('matriculaPadre')) $('matriculaPadre').value = val;
+
+  if (val.length < 4) { st.textContent = ''; return; }
+
+  st.style.color = 'var(--grl)';
+  st.textContent = 'Verificando…';
+
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(async () => {
+    const { data, error } = await sb
+      .from('alumnos')
+      .select('id, nombre, activo')
+      .eq('matricula', val)
+      .single();
+
+    if (error || !data) {
+      st.style.color = 'var(--err)';
+      st.textContent = '✗ Matrícula no encontrada en el sistema';
+      matriculaPadreValida = false;
+      return;
+    }
+    if (!data.activo) {
+      st.style.color = 'var(--err)';
+      st.textContent = '✗ Alumno inactivo — contacta a la administración';
+      matriculaPadreValida = false;
+      return;
+    }
+
+    st.style.color = 'var(--ok)';
+    st.textContent = `✓ ${data.nombre}`;
+    matriculaPadreValida = true;
+  }, 600);
+};
 window.validarCodigo = async raw => {
   const st  = $('codigoStatus');
   const val = raw.trim().toUpperCase();
@@ -541,6 +593,13 @@ $('btn').addEventListener('click', async () => {
     }
   }
 
+  if (TIPO === 'padre') {
+    if (!matriculaPadreValida) {
+      showErr('Ingresa la matrícula escolar de tu hijo/a para continuar.');
+      return;
+    }
+  }
+
   if (TIPO === 'docente') {
     if (!codigoValido) {
       showErr('Ingresa un código de invitación válido antes de continuar.');
@@ -552,8 +611,9 @@ $('btn').addEventListener('click', async () => {
 
   /* Armar metadata según tipo */
   const metadata = { nombre, rol: TIPO };
-  if (TIPO === 'alumno')  metadata.matricula          = $('matricula').value.trim().toUpperCase();
-  if (TIPO === 'docente') metadata.codigo_invitacion  = $('codigo').value.trim().toUpperCase();
+  if (TIPO === 'alumno')  metadata.matricula           = $('matricula').value.trim().toUpperCase();
+  if (TIPO === 'docente') metadata.codigo_invitacion   = $('codigo').value.trim().toUpperCase();
+  if (TIPO === 'padre')   metadata.matricula_hijo      = $('matriculaPadre').value.trim().toUpperCase();
 
   const { data, error } = await sb.auth.signUp({
     email,
