@@ -390,33 +390,25 @@ const DB = window.DB = {
         .select().single();
       if (errConv) throw errConv;
 
-      // 2. Obtener alumnos activos con perfil_id del grupo
+      // 2. Obtener alumnos activos del grupo
       const { data: alumnos } = await sb
         .from('alumnos')
-        .select('perfil_id')
+        .select('id, perfil_id')
         .eq('grupo_id', grupoId)
         .eq('activo', true)
         .not('perfil_id', 'is', null);
 
+      const alumnoIds    = (alumnos || []).map(a => a.perfil_id).filter(Boolean);
+      const alumnoRegIds = (alumnos || []).map(a => a.id).filter(Boolean);
+
       // 3. Obtener padres vinculados a alumnos de ese grupo
       let padreIds = [];
-      if (alumnoIds.length > 0) {
-        // Buscar IDs de alumnos (no perfil_id) para consultar tutores
-        const { data: alumnosRec } = await sb
-          .from('alumnos')
-          .select('id, perfil_id')
-          .eq('grupo_id', grupoId)
-          .eq('activo', true)
-          .not('perfil_id', 'is', null);
-
-        const alumnoIdsRec = (alumnosRec || []).map(a => a.id);
-        if (alumnoIdsRec.length > 0) {
-          const { data: tutores } = await sb
-            .from('tutores')
-            .select('padre_id')
-            .in('alumno_id', alumnoIdsRec);
-          padreIds = (tutores || []).map(t => t.padre_id).filter(Boolean);
-        }
+      if (alumnoRegIds.length > 0) {
+        const { data: tutores } = await sb
+          .from('tutores')
+          .select('padre_id')
+          .in('alumno_id', alumnoRegIds);
+        padreIds = [...new Set((tutores || []).map(t => t.padre_id).filter(Boolean))];
       }
 
       // 4. Unir: creador + alumnos + padres (sin duplicados)
@@ -492,14 +484,38 @@ const DB = window.DB = {
         const { data: alumnos } = await qAlumnos;
 
         // Padres vinculados a alumnos de sus grupos
-        const alumnoIds = (alumnos || []).map(a => a.perfil_id).filter(Boolean);
+        // Primero obtenemos los IDs de registro de alumnos (no perfil_id)
         let padres = [];
         if (alumnoIds.length > 0) {
-          const { data: tut } = await sb
-            .from('tutores')
-            .select('padre:perfiles!tutores_padre_id_fkey(id, nombre), alumno:alumnos(nombre, grupo:grupos(nombre))')
-            .in('alumno.perfil_id', alumnoIds);
-          padres = (tut || []).filter(t => t.padre);
+          const { data: alumnosReg } = await sb
+            .from('alumnos')
+            .select('id')
+            .in('perfil_id', alumnoIds);
+          const alumnoRegIds = (alumnosReg || []).map(a => a.id);
+          if (alumnoRegIds.length > 0) {
+            const { data: tut } = await sb
+              .from('tutores')
+              .select('padre_id, alumno:alumnos(nombre, grupo:grupos(nombre))')
+              .in('alumno_id', alumnoRegIds);
+            // Obtener nombres de los padres
+            const padreIdsUniq = [...new Set((tut||[]).map(t => t.padre_id).filter(Boolean))];
+            if (padreIdsUniq.length > 0) {
+              const { data: padrePerfiles } = await sb
+                .from('perfiles')
+                .select('id, nombre')
+                .in('id', padreIdsUniq);
+              const mapaPadre = Object.fromEntries((padrePerfiles||[]).map(p => [p.id, p.nombre]));
+              padres = (tut||[])
+                .filter(t => t.padre_id && mapaPadre[t.padre_id])
+                .map(t => ({
+                  id:     t.padre_id,
+                  nombre: mapaPadre[t.padre_id],
+                  hijo:   t.alumno?.nombre,
+                }));
+              // Deduplicar por padre_id
+              padres = padres.filter((p, i, a) => a.findIndex(x => x.id === p.id) === i);
+            }
+          }
         }
 
         // Otros docentes y admin
@@ -515,9 +531,7 @@ const DB = window.DB = {
           alumnos:  (alumnos || []).filter(a => a.perfil_id).map(a => ({
             id: a.perfil_id, nombre: a.nombre, grupo: a.grupo?.nombre
           })),
-          padres: padres.map(t => ({
-            id: t.padre.id, nombre: t.padre.nombre, hijo: t.alumno?.nombre
-          })),
+          padres,
         };
       }
 
