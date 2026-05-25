@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Mensajería — TEBAM Digital</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <script src="../js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="../js/supabase-client.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/db.js"></script>
+  <script src="../js/ui.js"></script>
+  <link rel="stylesheet" href="../css/main.css"/>
+  <style>
+    :root {
+      --sidebar-w: 280px;
+      --topbar-h: 56px;
+    }
+
+    body { margin:0; font-family:'DM Sans',sans-serif; background:var(--bg3); color:var(--tx1); display:flex; height:100vh; overflow:hidden; }
+
+    /* ── Layout principal ── */
+    .msg-layout { display:flex; width:100%; height:100vh; }
+
+    /* ── Panel izquierdo — lista de conversaciones ── */
+    .conv-panel {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--bg2);
+      border-right: 1px solid var(--bd);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .conv-header {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--bd);
+    }
+    .conv-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--tx1);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .badge-count {
+      background: var(--err);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 99px;
+    }
+    .search-box {
+      position: relative;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 8px 10px 8px 32px;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      border-radius: 8px;
+      font-family: 'DM Sans',sans-serif;
+      font-size: 13px;
+      color: var(--tx1);
+      outline: none;
+    }
+    .search-box input:focus { border-color: var(--y); }
+    .search-box i { position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--gr);font-size:15px; }
+
+    .filter-chips { display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+    .chip {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--bg3);
+      border: 1px solid var(--bd);
+      color: var(--tx2);
+      cursor: pointer;
+    }
+    .chip.active { background: rgba(241,230,64,.12); border-color: var(--y); color: var(--y); }
+
+    .conv-actions { padding: 10px 14px; display:flex; gap:8px; }
+    .btn-msg {
+      flex:1; padding:8px; border-radius:8px; border:none;
+      font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
+      transition:.15s;
+    }
+    .btn-msg-y { background:var(--y); color:var(--gd); }
+    .btn-msg-y:hover { opacity:.85; }
+    .btn-msg-g { background:var(--bg3); color:var(--tx2); border:1px solid var(--bd); }
+    .btn-msg-g:hover { border-color:var(--grl); color:var(--tx1); }
+
+    .conv-list { overflow-y:auto; flex:1; }
+    .conv-item {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--bd);
+      cursor: pointer;
+      transition: .12s;
+      position: relative;
+    }
+    .conv-item:hover { background: rgba(255,255,255,.04); }
+    .conv-item.active { background: rgba(241,230,64,.06); border-left: 3px solid var(--y); }
+    .conv-item.unread .conv-nombre { font-weight: 600; }
+    .conv-nombre { font-size: 13px; color: var(--tx1); margin-bottom:2px; }
+    .conv-preview { font-size: 12px; color: var(--tx2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
+    .conv-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+    .conv-time { font-size:11px; color:var(--gr); }
+    .conv-unread-dot { width:8px; height:8px; background:var(--y); border-radius:50%; flex-shrink:0; }
+    .conv-broadcast-badge {
+      font-size:10px; padding:1px 6px; border-radius:99px;
+      background:rgba(114,201,111,.15); color:#72c96f;
+      font-weight:500; margin-left:5px;
+    }
+    .conv-empty { padding:40px 20px; text-align:center; color:var(--gr); font-size:13px; }
+
+    /* ── Panel derecho — chat ── */
+    .chat-panel { flex:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+    .chat-topbar {
+      height: var(--topbar-h);
+      padding: 0 20px;
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+    .chat-back { display:none; cursor:pointer; font-size:20px; color:var(--gr); }
+    .chat-ava { width:36px; height:36px; border-radius:50%; background:rgba(241,230,64,.15); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600; color:var(--y); flex-shrink:0; }
+    .chat-info { flex:1; }
+    .chat-nombre { font-size:14px; font-weight:500; color:var(--tx1); }
+    .chat-subnombre { font-size:12px; color:var(--gr); }
+
+    .chat-messages { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
+
+    .msg-bubble-wrap { display:flex; gap:8px; align-items:flex-end; }
+    .msg-bubble-wrap.mine { flex-direction:row-reverse; }
+    .msg-ava { width:28px; height:28px; border-radius:50%; background:rgba(255,255,255,.08); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; color:var(--tx2); flex-shrink:0; }
+    .msg-bubble {
+      max-width: 65%;
+      padding: 9px 13px;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+    .msg-bubble.other { background:rgba(255,255,255,.06); color:var(--tx1); border-bottom-left-radius:3px; }
+    .msg-bubble.mine { background:rgba(241,230,64,.15); color:var(--tx1); border-bottom-right-radius:3px; }
+    .msg-bubble.broadcast { background:rgba(114,201,111,.1); border-bottom-left-radius:3px; }
+    .msg-sender { font-size:11px; color:var(--gr); margin-bottom:3px; }
+    .msg-time { font-size:10px; color:var(--gr); margin-top:3px; text-align:right; }
+    .msg-bubble.other .msg-time { text-align:left; }
+
+    .chat-input-area {
+      padding: 12px 20px 16px;
+      border-top: 1px solid var(--bd);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .chat-textarea {
+      flex:1; padding:10px 14px; background:rgba(0,0,0,.2);
+      border:1px solid var(--bd); border-radius:10px;
+      font-family:'DM Sans',sans-serif; font-size:13px; color:var(--tx1);
+      outline:none; resize:none; min-height:38px; max-height:120px;
+      transition:.15s;
+    }
+    .chat-textarea:focus { border-color:var(--y); }
+    .chat-textarea::placeholder { color:var(--gr); }
+    .chat-textarea:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-send {
+      width:38px; height:38px; border-radius:50%; border:none;
+      background:var(--y); color:var(--gd);
+      display:flex; align-items:center; justify-content:center;
+      font-size:17px; cursor:pointer; transition:.15s; flex-shrink:0;
+    }
+    .btn-send:hover { opacity:.85; }
+    .btn-send:disabled { opacity:.3; cursor:not-allowed; }
+    .broadcast-notice {
+      padding:8px 14px; background:rgba(114,201,111,.08);
+      border-top:1px solid rgba(114,201,111,.15);
+      font-size:12px; color:#72c96f; text-align:center;
+      flex-shrink:0;
+    }
+
+    .chat-empty {
+      flex:1; display:flex; align-items:center; justify-content:center;
+      flex-direction:column; gap:10px; color:var(--gr);
+    }
+    .chat-empty i { font-size:40px; opacity:.4; }
+    .chat-empty p { font-size:14px; margin:0; }
+
+    /* ── Modal nuevo mensaje ── */
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; }
+    .overlay.show { display:flex; }
+    .modal-nuevo {
+      background:var(--bg2); border:1px solid var(--bd); border-radius:14px;
+      padding:22px 24px; width:100%; max-width:420px; max-height:85vh; overflow-y:auto;
+    }
+    .modal-title { font-size:16px; font-weight:600; margin-bottom:16px; color:var(--tx1); }
+    .dest-group { margin-bottom:14px; }
+    .dest-group-label {
+      font-size:11px; font-weight:600; color:var(--gr);
+      text-transform:uppercase; letter-spacing:.05em;
+      margin-bottom:7px; display:flex; align-items:center; gap:6px;
+    }
+    .dest-group-label i { font-size:14px; }
+    .dest-item {
+      display:flex; align-items:center; gap:10px;
+      padding:8px 10px; border-radius:8px; cursor:pointer; transition:.12s;
+    }
+    .dest-item:hover { background:rgba(255,255,255,.05); }
+    .dest-item.selected { background:rgba(241,230,64,.08); border:1px solid rgba(241,230,64,.25); }
+    .dest-ava { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; flex-shrink:0; }
+    .dest-nombre { font-size:13px; color:var(--tx1); }
+    .dest-sub { font-size:11px; color:var(--gr); }
+    .campo-asunto { width:100%; margin-bottom:12px; }
+    .campo-asunto input {
+      width:100%; padding:10px 12px; background:rgba(0,0,0,.25);
+      border:1px solid var(--bd); border-radius:8px;
+      font-family:'DM Sans',sans-serif; font-size:13px; color:var(--tx1); outline:none;
+    }
+    .campo-asunto input:focus { border-color:var(--y); }
+    .campo-asunto label { font-size:11px; color:var(--gr); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
+    .modal-acts { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; }
+    .btn-modal { padding:9px 18px; border-radius:8px; border:none; font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; }
+    .btn-modal-y { background:var(--y); color:var(--gd); }
+    .btn-modal-g { background:rgba(255,255,255,.07); color:var(--tx2); }
+
+    /* ── Modal broadcast ── */
+    .modal-broadcast { background:var(--bg2); border:1px solid var(--bd); border-radius:14px; padding:22px 24px; width:100%; max-width:460px; }
+    .campo-msg { margin-bottom:12px; }
+    .campo-msg label { font-size:11px; color:var(--gr); display:block; margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em; }
+    .campo-msg select, .campo-msg textarea, .campo-msg input {
+      width:100%; padding:10px 12px; background:rgba(0,0,0,.25);
+      border:1px solid var(--bd); border-radius:8px;
+      font-family:'DM Sans',sans-serif; font-size:13px; color:var(--tx1); outline:none;
+    }
+    .campo-msg select:focus, .campo-msg textarea:focus, .campo-msg input:focus { border-color:var(--y); }
+    .campo-msg select option { background:var(--gm); }
+    .campo-msg textarea { resize:vertical; min-height:80px; }
+
+    /* ── Variables TEBAM ── */
+    :root {
+      --gd:#1a2010;--gm:#2e3618;--gl:#404d20;
+      --y:#f1e640;--gr:#7a8560;--grl:#b8c49a;
+      --tx1:#edeee8;--tx2:#b8c49a;--bg2:#2e3618;--bg3:#1a2010;
+      --bd:rgba(255,255,255,.1);--err:#e05a4e;--ok:#72c96f;--warn:#e8a020;
+    }
+    * { box-sizing:border-box; }
+    ::-webkit-scrollbar { width:5px; } ::-webkit-scrollbar-thumb { background:rgba(255,255,255,.12); border-radius:3px; }
+  </style>
+</head>
+<body>
+
+<div class="msg-layout">
+
+  <!-- ══ Panel izquierdo ══ -->
+  <div class="conv-panel">
+    <div class="conv-header">
+      <div class="conv-title">
+        Mensajería
+        <span class="badge-count" id="badgeCount" style="display:none">0</span>
+      </div>
+      <div class="search-box">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input id="searchConv" placeholder="Buscar conversación…" oninput="filtrarConvs()"/>
+      </div>
+      <div class="filter-chips">
+        <span class="chip active" data-f="todos"    onclick="setFiltro(this,'todos')">Todos</span>
+        <span class="chip"        data-f="noleidos" onclick="setFiltro(this,'noleidos')">No leídos</span>
+        <span class="chip"        data-f="directa"  onclick="setFiltro(this,'directa')">Directos</span>
+        <span class="chip"        data-f="broadcast" onclick="setFiltro(this,'broadcast')">Broadcast</span>
+      </div>
+    </div>
+    <div class="conv-actions">
+      <button class="btn-msg btn-msg-y" onclick="abrirNuevoMensaje()">
+        <i class="ti ti-pencil" aria-hidden="true"></i> Nuevo
+      </button>
+      <button class="btn-msg btn-msg-g" id="btnBroadcast" style="display:none" onclick="abrirBroadcast()">
+        <i class="ti ti-broadcast" aria-hidden="true"></i> Al grupo
+      </button>
+    </div>
+    <div class="conv-list" id="convList">
+      <div class="conv-empty">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ══ Panel derecho ══ -->
+  <div class="chat-panel" id="chatPanel">
+    <div class="chat-empty" id="chatEmpty">
+      <i class="ti ti-messages" aria-hidden="true"></i>
+      <p>Selecciona una conversación</p>
+    </div>
+
+    <div id="chatContent" style="display:none; flex:1; display:none; flex-direction:column; height:100vh; overflow:hidden;">
+      <div class="chat-topbar">
+        <span class="chat-back" id="chatBack" onclick="cerrarChat()"><i class="ti ti-arrow-left" aria-hidden="true"></i></span>
+        <div class="chat-ava" id="chatAva">?</div>
+        <div class="chat-info">
+          <div class="chat-nombre" id="chatNombre">—</div>
+          <div class="chat-subnombre" id="chatSubnombre"></div>
+        </div>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="broadcast-notice" id="broadcastNotice" style="display:none">
+        <i class="ti ti-info-circle" aria-hidden="true"></i> Este es un mensaje grupal. Solo el docente puede escribir en esta conversación.
+      </div>
+      <div class="chat-input-area" id="chatInputArea">
+        <textarea class="chat-textarea" id="chatInput" placeholder="Escribe un mensaje…" rows="1"
+                  onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
+        <button class="btn-send" id="btnSend" onclick="enviarMensaje()">
+          <i class="ti ti-send" aria-hidden="true"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal: Nuevo mensaje directo -->
+<div class="overlay" id="mNuevo">
+  <div class="modal-nuevo">
+    <div class="modal-title"><i class="ti ti-pencil" aria-hidden="true"></i> Nuevo mensaje</div>
+    <div id="destLista">
+      <div style="color:var(--gr);font-size:13px;text-align:center;padding:20px">Cargando contactos…</div>
+    </div>
+    <div class="campo-asunto">
+      <label>Asunto (opcional)</label>
+      <input id="nuevoAsunto" placeholder="Asunto del mensaje…"/>
+    </div>
+    <div class="modal-acts">
+      <button class="btn-modal btn-modal-g" onclick="cerrarModal('mNuevo')">Cancelar</button>
+      <button class="btn-modal btn-modal-y" onclick="confirmarNuevoMensaje()">Abrir chat</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Broadcast al grupo -->
+<div class="overlay" id="mBroadcast">
+  <div class="modal-broadcast">
+    <div class="modal-title"><i class="ti ti-broadcast" aria-hidden="true"></i> Mensaje al grupo</div>
+    <div class="campo-msg">
+      <label>Grupo destinatario</label>
+      <select id="bcGrupo"></select>
+    </div>
+    <div class="campo-msg">
+      <label>Asunto</label>
+      <input id="bcAsunto" placeholder="Ej. Tarea para el viernes…"/>
+    </div>
+    <div class="campo-msg">
+      <label>Mensaje</label>
+      <textarea id="bcCuerpo" placeholder="Escribe el mensaje para todos los alumnos y padres del grupo…"></textarea>
+    </div>
+    <div id="bcMsg" style="font-size:12px;margin-bottom:8px;display:none"></div>
+    <div class="modal-acts">
+      <button class="btn-modal btn-modal-g" onclick="cerrarModal('mBroadcast')">Cancelar</button>
+      <button class="btn-modal btn-modal-y" id="btnBcEnviar" onclick="enviarBroadcast()">Enviar al grupo</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   ESTADO
+══════════════════════════════════════════════════ */
+let todasConvs    = [];
+let filtroActual  = 'todos';
+let convActual    = null;
+let mensajesCache = {};
+let destinatarios = {};
+let destSelec     = null;
+let esAdmin       = false;
+let esDocente     = false;
+
+const $ = id => document.getElementById(id);
+
+/* ══════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════ */
+(async () => {
+  const perfil = await Auth.init(null);
+  esAdmin   = perfil.rol === 'admin';
+  esDocente = perfil.rol === 'docente' || esAdmin;
+
+  if (esDocente) $('btnBroadcast').style.display = 'flex';
+
+  await Promise.all([cargarConvs(), actualizarBadge()]);
+})();
+
+async function cargarConvs() {
+  try {
+    todasConvs = await DB.mensajeria.listarConversaciones();
+    renderConvList();
+  } catch(e) {
+    $('convList').innerHTML = `<div class="conv-empty">Error al cargar: ${e.message}</div>`;
+  }
+}
+
+async function actualizarBadge() {
+  const n = await DB.mensajeria.noLeidos();
+  const el = $('badgeCount');
+  if (n > 0) { el.textContent = n; el.style.display = 'inline-block'; }
+  else el.style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════
+   LISTA DE CONVERSACIONES
+══════════════════════════════════════════════════ */
+function renderConvList() {
+  const q = $('searchConv').value.toLowerCase();
+  let lista = todasConvs.filter(c => {
+    const nombre = nombreConv(c).toLowerCase();
+    const matchQ = !q || nombre.includes(q) || (c.asunto||'').toLowerCase().includes(q);
+    const matchF = filtroActual === 'todos' ? true
+      : filtroActual === 'noleidos' ? tieneNoLeidos(c)
+      : c.tipo === filtroActual;
+    return matchQ && matchF;
+  });
+
+  if (!lista.length) {
+    $('convList').innerHTML = `<div class="conv-empty">${todasConvs.length ? 'Sin resultados' : 'Sin conversaciones'}</div>`;
+    return;
+  }
+
+  $('convList').innerHTML = lista.map(c => {
+    const nombre   = nombreConv(c);
+    const iniciales = iniciales2(nombre);
+    const unread   = tieneNoLeidos(c);
+    const active   = convActual?.id === c.id ? 'active' : '';
+    const unreadCls = unread ? 'unread' : '';
+    const bcBadge  = c.tipo === 'broadcast' ? '<span class="conv-broadcast-badge">GRUPO</span>' : '';
+    return `
+      <div class="conv-item ${active} ${unreadCls}" onclick="abrirConv('${c.id}')">
+        <div class="conv-meta">
+          <span class="conv-nombre">${esc(nombre)}${bcBadge}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="conv-time">${fmtFecha(c.created_at)}</span>
+            ${unread ? '<span class="conv-unread-dot"></span>' : ''}
+          </div>
+        </div>
+        <div class="conv-preview">${esc(c.asunto||'Sin asunto')}</div>
+      </div>`;
+  }).join('');
+}
+
+function nombreConv(c) {
+  if (c.tipo === 'broadcast') return `📢 ${c.grupo?.nombre || 'Grupo'} — ${c.creador?.nombre || ''}`;
+  return c.creador?.id === Auth.user.id ? 'Tú' : (c.creador?.nombre || '…');
+}
+
+function tieneNoLeidos(c) {
+  return false; // simplificado — se puede calcular con ultimo_leido_at
+}
+
+function setFiltro(el, val) {
+  filtroActual = val;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderConvList();
+}
+
+function filtrarConvs() { renderConvList(); }
+
+/* ══════════════════════════════════════════════════
+   ABRIR CONVERSACIÓN
+══════════════════════════════════════════════════ */
+async function abrirConv(convId) {
+  convActual = todasConvs.find(c => c.id === convId);
+  if (!convActual) return;
+
+  // Marcar como leída
+  await DB.mensajeria.marcarLeida(convId);
+  actualizarBadge();
+
+  // Actualizar UI lista
+  renderConvList();
+
+  // Mostrar panel de chat
+  $('chatEmpty').style.display  = 'none';
+  $('chatContent').style.display = 'flex';
+
+  const nombre = nombreConv(convActual);
+  $('chatAva').textContent    = iniciales2(nombre);
+  $('chatNombre').textContent = nombre;
+  $('chatSubnombre').textContent = convActual.tipo === 'broadcast'
+    ? `Mensaje grupal · ${convActual.grupo?.nombre || ''}`
+    : (convActual.creador?.rol || '');
+
+  // Broadcast: deshabilitar input si no eres el creador
+  const esBroadcast = convActual.tipo === 'broadcast';
+  const soyCreador  = convActual.creador_id === Auth.user.id;
+  $('broadcastNotice').style.display = (esBroadcast && !soyCreador) ? 'flex' : 'none';
+  $('chatInputArea').style.display   = (!esBroadcast || soyCreador) ? 'flex' : 'none';
+
+  await cargarMensajes(convId);
+}
+
+async function cargarMensajes(convId) {
+  $('chatMessages').innerHTML = '<div style="color:var(--gr);text-align:center;font-size:13px;padding:20px">Cargando…</div>';
+  const msgs = await DB.mensajeria.listarMensajes(convId);
+  mensajesCache[convId] = msgs;
+  renderMensajes(msgs);
+}
+
+function renderMensajes(msgs) {
+  if (!msgs.length) {
+    $('chatMessages').innerHTML = '<div style="color:var(--gr);text-align:center;font-size:13px;padding:20px">Sin mensajes aún. ¡Escribe el primero!</div>';
+    return;
+  }
+  $('chatMessages').innerHTML = msgs.map(m => {
+    const mine   = m.remitente_id === Auth.user.id;
+    const nombre = m.remitente?.nombre || 'Desconocido';
+    const ini    = iniciales2(nombre);
+    const cls    = mine ? 'mine' : (convActual?.tipo === 'broadcast' ? 'broadcast' : 'other');
+    return `
+      <div class="msg-bubble-wrap ${mine ? 'mine' : ''}">
+        ${!mine ? `<div class="msg-ava">${esc(ini)}</div>` : ''}
+        <div>
+          ${!mine ? `<div class="msg-sender">${esc(nombre)}</div>` : ''}
+          <div class="msg-bubble ${cls}">${esc(m.cuerpo)}</div>
+          <div class="msg-time">${fmtFechaHora(m.created_at)}</div>
+        </div>
+      </div>`;
+  }).join('');
+  // Scroll al fondo
+  const el = $('chatMessages');
+  el.scrollTop = el.scrollHeight;
+}
+
+function cerrarChat() {
+  convActual = null;
+  $('chatEmpty').style.display   = 'flex';
+  $('chatContent').style.display = 'none';
+}
+
+/* ══════════════════════════════════════════════════
+   ENVIAR MENSAJE
+══════════════════════════════════════════════════ */
+async function enviarMensaje() {
+  const cuerpo = $('chatInput').value.trim();
+  if (!cuerpo || !convActual) return;
+  $('btnSend').disabled = true;
+  $('chatInput').value = '';
+  try {
+    const msg = await DB.mensajeria.enviar({ conversacionId: convActual.id, cuerpo });
+    // Agregar burbuja optimista
+    if (!mensajesCache[convActual.id]) mensajesCache[convActual.id] = [];
+    mensajesCache[convActual.id].push({ ...msg, remitente: { id: Auth.user.id, nombre: Auth.perfil.nombre } });
+    renderMensajes(mensajesCache[convActual.id]);
+    // Actualizar preview en lista
+    await cargarConvs();
+  } catch(e) {
+    UI.toast('Error al enviar: ' + e.message, 'err');
+  }
+  $('btnSend').disabled = false;
+}
+
+function handleEnter(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensaje(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+/* ══════════════════════════════════════════════════
+   NUEVO MENSAJE DIRECTO
+══════════════════════════════════════════════════ */
+async function abrirNuevoMensaje() {
+  destSelec = null;
+  $('nuevoAsunto').value = '';
+  $('destLista').innerHTML = '<div style="color:var(--gr);font-size:13px;text-align:center;padding:16px">Cargando contactos…</div>';
+  $('mNuevo').classList.add('show');
+  destinatarios = await DB.mensajeria.listarDestinatarios();
+  renderDestinatarios();
+}
+
+function renderDestinatarios() {
+  const grupos = [
+    { key:'docentes', label:'Docentes', ico:'ti-school',       color:'#EAF3DE', tc:'#3B6D11' },
+    { key:'admins',   label:'Admin',    ico:'ti-shield-check',  color:'#E6F1FB', tc:'#185FA5' },
+    { key:'alumnos',  label:'Alumnos',  ico:'ti-user-graduate', color:'#EAF3DE', tc:'#3B6D11' },
+    { key:'padres',   label:'Padres',   ico:'ti-users',         color:'#FAEEDA', tc:'#854F0B' },
+  ];
+
+  $('destLista').innerHTML = grupos.map(g => {
+    const items = destinatarios[g.key] || [];
+    if (!items.length) return '';
+    return `
+      <div class="dest-group">
+        <div class="dest-group-label"><i class="ti ${g.ico}" aria-hidden="true"></i>${g.label}</div>
+        ${items.map(p => `
+          <div class="dest-item" id="dest-${p.id}" onclick="seleccionarDest('${p.id}','${esc(p.nombre)}')">
+            <div class="dest-ava" style="background:${g.color};color:${g.tc}">${iniciales2(p.nombre)}</div>
+            <div>
+              <div class="dest-nombre">${esc(p.nombre)}</div>
+              ${p.grupo ? `<div class="dest-sub">${esc(p.grupo)}</div>` : ''}
+              ${p.hijo  ? `<div class="dest-sub">Padre de: ${esc(p.hijo)}</div>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>`;
+  }).join('');
+}
+
+function seleccionarDest(id, nombre) {
+  destSelec = id;
+  document.querySelectorAll('.dest-item').forEach(el => el.classList.remove('selected'));
+  $(`dest-${id}`)?.classList.add('selected');
+}
+
+async function confirmarNuevoMensaje() {
+  if (!destSelec) { UI.toast('Selecciona un destinatario', 'err'); return; }
+  const asunto = $('nuevoAsunto').value.trim();
+  cerrarModal('mNuevo');
+  const convId = await DB.mensajeria.obtenerOCrearDirecta(destSelec, asunto);
+  await cargarConvs();
+  await abrirConv(convId);
+}
+
+/* ══════════════════════════════════════════════════
+   BROADCAST
+══════════════════════════════════════════════════ */
+async function abrirBroadcast() {
+  $('bcAsunto').value = '';
+  $('bcCuerpo').value = '';
+  $('bcMsg').style.display = 'none';
+
+  // Cargar grupos del docente
+  let grupos = [];
+  if (esAdmin) {
+    const { data } = await sb.from('grupos').select('id, nombre, ciclo:ciclos(nombre)').order('nombre');
+    grupos = data || [];
+  } else {
+    const { data } = await sb.from('grupo_docentes')
+      .select('grupo:grupos(id, nombre, ciclo:ciclos(nombre))')
+      .eq('perfil_id', Auth.user.id);
+    grupos = (data || []).map(d => d.grupo).filter(Boolean);
+  }
+
+  $('bcGrupo').innerHTML = grupos.map(g =>
+    `<option value="${g.id}">${esc(g.nombre)}${g.ciclo ? ' · ' + g.ciclo.nombre : ''}</option>`
+  ).join('') || '<option>Sin grupos disponibles</option>';
+
+  $('mBroadcast').classList.add('show');
+}
+
+async function enviarBroadcast() {
+  const grupoId = $('bcGrupo').value;
+  const asunto  = $('bcAsunto').value.trim();
+  const cuerpo  = $('bcCuerpo').value.trim();
+  const msg     = $('bcMsg');
+
+  if (!asunto) { mostrarBcMsg('Escribe un asunto.', 'err'); return; }
+  if (!cuerpo) { mostrarBcMsg('Escribe el mensaje.', 'err'); return; }
+
+  $('btnBcEnviar').disabled = true;
+  try {
+    await DB.mensajeria.crearBroadcast({ grupoId, asunto, cuerpo });
+    cerrarModal('mBroadcast');
+    UI.toast('✓ Mensaje enviado al grupo');
+    await cargarConvs();
+  } catch(e) {
+    mostrarBcMsg('Error: ' + e.message, 'err');
+    $('btnBcEnviar').disabled = false;
+  }
+}
+
+function mostrarBcMsg(txt, tipo) {
+  const el = $('bcMsg');
+  el.style.display = 'block';
+  el.style.color   = tipo === 'ok' ? 'var(--ok)' : 'var(--err)';
+  el.textContent   = txt;
+}
+
+/* ══════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════ */
+function cerrarModal(id) { $(id).classList.remove('show'); }
+
+function iniciales2(nombre) {
+  if (!nombre) return '?';
+  const p = nombre.split(' ').filter(Boolean);
+  return (p[0]?.[0] || '') + (p[1]?.[0] || '');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtFecha(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const hoy = new Date();
+  if (d.toDateString() === hoy.toDateString()) return d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('es-MX',{day:'2-digit',month:'short'});
+}
+
+function fmtFechaHora(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleString('es-MX',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'});
+}
+
+document.querySelectorAll('.overlay').forEach(el =>
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('show'); })
+);
+</script>
+</body>
+</html>
