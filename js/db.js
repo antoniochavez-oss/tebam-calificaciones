@@ -328,6 +328,222 @@ const DB = window.DB = {
     },
   },
 
+  // ─── MENSAJERÍA ────────────────────────────────────────────
+  mensajeria: {
+
+    // Contador de no leídos para el badge del portal
+    async noLeidos() {
+      const { data, error } = await sb.rpc('contar_no_leidos', { p_id: Auth.user.id });
+      if (error) return 0;
+      return data || 0;
+    },
+
+    // Lista de conversaciones del usuario autenticado
+    async listarConversaciones() {
+      const { data, error } = await sb
+        .from('conversacion_participantes')
+        .select(`
+          conversacion_id,
+          ultimo_leido_at,
+          conversacion:conversaciones (
+            id, tipo, asunto, creador_id, grupo_id, created_at,
+            grupo:grupos(nombre),
+            creador:perfiles!conversaciones_creador_id_fkey(id, nombre, rol)
+          )
+        `)
+        .eq('perfil_id', Auth.user.id)
+        .order('conversacion_id');
+      if (error) throw error;
+      // Para cada conversación directa, obtener el otro participante
+      const convs = (data || []).map(r => r.conversacion).filter(Boolean);
+      return convs;
+    },
+
+    // Mensajes de una conversación
+    async listarMensajes(conversacionId) {
+      const { data, error } = await sb
+        .from('mensajes')
+        .select('*, remitente:perfiles!mensajes_remitente_id_fkey(id, nombre, rol)')
+        .eq('conversacion_id', conversacionId)
+        .eq('eliminado', false)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+
+    // Obtener o crear conversación directa (usa función SQL para evitar duplicados)
+    async obtenerOCrearDirecta(receptorId, asunto = '') {
+      const { data, error } = await sb.rpc('obtener_o_crear_directa', {
+        p_receptor_id: receptorId,
+        p_asunto:      asunto,
+      });
+      if (error) throw error;
+      return data; // UUID de la conversación
+    },
+
+    // Crear broadcast del docente a un grupo (alumnos + padres)
+    async crearBroadcast({ grupoId, asunto, cuerpo }) {
+      // 1. Crear la conversación
+      const { data: conv, error: errConv } = await sb
+        .from('conversaciones')
+        .insert({ tipo: 'broadcast', asunto, creador_id: Auth.user.id, grupo_id: grupoId })
+        .select().single();
+      if (errConv) throw errConv;
+
+      // 2. Obtener alumnos activos con perfil_id del grupo
+      const { data: alumnos } = await sb
+        .from('alumnos')
+        .select('perfil_id')
+        .eq('grupo_id', grupoId)
+        .eq('activo', true)
+        .not('perfil_id', 'is', null);
+
+      // 3. Obtener padres vinculados a esos alumnos
+      const alumnoIds = (alumnos || []).map(a => a.perfil_id);
+      let padreIds = [];
+      if (alumnoIds.length > 0) {
+        const { data: tutores } = await sb
+          .from('tutores')
+          .select('padre_id, alumno:alumnos!tutores_alumno_id_fkey(perfil_id)')
+          .in('alumno.perfil_id', alumnoIds);
+        padreIds = (tutores || []).map(t => t.padre_id).filter(Boolean);
+      }
+
+      // 4. Unir: creador + alumnos + padres (sin duplicados)
+      const todos = [
+        Auth.user.id,
+        ...alumnoIds,
+        ...padreIds,
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
+      // 5. Insertar participantes en lotes de 50
+      for (let i = 0; i < todos.length; i += 50) {
+        const lote = todos.slice(i, i + 50).map(pid => ({
+          conversacion_id: conv.id,
+          perfil_id: pid,
+        }));
+        await sb.from('conversacion_participantes').insert(lote);
+      }
+
+      // 6. Insertar el mensaje inicial
+      await sb.from('mensajes').insert({
+        conversacion_id: conv.id,
+        remitente_id: Auth.user.id,
+        cuerpo,
+      });
+
+      return conv.id;
+    },
+
+    // Enviar mensaje en conversación existente
+    async enviar({ conversacionId, cuerpo }) {
+      const { data, error } = await sb
+        .from('mensajes')
+        .insert({ conversacion_id: conversacionId, remitente_id: Auth.user.id, cuerpo })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+
+    // Marcar conversación como leída (actualiza ultimo_leido_at)
+    async marcarLeida(conversacionId) {
+      await sb
+        .from('conversacion_participantes')
+        .update({ ultimo_leido_at: new Date().toISOString() })
+        .eq('conversacion_id', conversacionId)
+        .eq('perfil_id', Auth.user.id);
+    },
+
+    // Listar usuarios con los que el usuario puede comunicarse
+    // organizado por rol — para el selector de destinatarios
+    async listarDestinatarios() {
+      const perfil = Auth.perfil;
+      const rol    = perfil?.rol;
+
+      // Admin y docente pueden ver todos los roles relevantes
+      if (rol === 'admin' || rol === 'docente') {
+        // Obtener grupos del docente (o todos si es admin)
+        let grupoIds = [];
+        if (rol === 'docente') {
+          const { data: gd } = await sb
+            .from('grupo_docentes')
+            .select('grupo_id')
+            .eq('perfil_id', Auth.user.id);
+          grupoIds = (gd || []).map(g => g.grupo_id);
+        }
+
+        // Alumnos de sus grupos
+        let qAlumnos = sb.from('alumnos')
+          .select('perfil_id, nombre, grupo:grupos(nombre)')
+          .eq('activo', true)
+          .not('perfil_id', 'is', null);
+        if (rol === 'docente' && grupoIds.length > 0)
+          qAlumnos = qAlumnos.in('grupo_id', grupoIds);
+        const { data: alumnos } = await qAlumnos;
+
+        // Padres vinculados a alumnos de sus grupos
+        const alumnoIds = (alumnos || []).map(a => a.perfil_id).filter(Boolean);
+        let padres = [];
+        if (alumnoIds.length > 0) {
+          const { data: tut } = await sb
+            .from('tutores')
+            .select('padre:perfiles!tutores_padre_id_fkey(id, nombre), alumno:alumnos(nombre, grupo:grupos(nombre))')
+            .in('alumno.perfil_id', alumnoIds);
+          padres = (tut || []).filter(t => t.padre);
+        }
+
+        // Otros docentes y admin
+        const { data: staff } = await sb
+          .from('perfiles')
+          .select('id, nombre, rol')
+          .in('rol', ['docente', 'admin'])
+          .neq('id', Auth.user.id);
+
+        return {
+          docentes: (staff || []).filter(p => p.rol === 'docente'),
+          admins:   (staff || []).filter(p => p.rol === 'admin'),
+          alumnos:  (alumnos || []).filter(a => a.perfil_id).map(a => ({
+            id: a.perfil_id, nombre: a.nombre, grupo: a.grupo?.nombre
+          })),
+          padres: padres.map(t => ({
+            id: t.padre.id, nombre: t.padre.nombre, hijo: t.alumno?.nombre
+          })),
+        };
+      }
+
+      // Alumno y padre: solo docentes de su grupo y admin
+      let grupoId = null;
+      if (rol === 'alumno') {
+        const { data: al } = await sb
+          .from('alumnos').select('grupo_id').eq('perfil_id', Auth.user.id).single();
+        grupoId = al?.grupo_id;
+      } else if (rol === 'padre') {
+        const { data: tut } = await sb
+          .from('tutores')
+          .select('alumno:alumnos(grupo_id)')
+          .eq('padre_id', Auth.user.id)
+          .limit(1).single();
+        grupoId = tut?.alumno?.grupo_id;
+      }
+
+      const { data: docentes } = grupoId
+        ? await sb.from('grupo_docentes')
+            .select('docente:perfiles!grupo_docentes_perfil_id_fkey(id, nombre)')
+            .eq('grupo_id', grupoId)
+        : { data: [] };
+
+      const { data: admins } = await sb
+        .from('perfiles').select('id, nombre').eq('rol', 'admin');
+
+      return {
+        docentes: (docentes || []).map(d => d.docente).filter(Boolean),
+        admins:   admins || [],
+        alumnos:  [],
+        padres:   [],
+      };
+    },
+  },
+
   // ─── PERFIL ────────────────────────────────────────────────
   perfiles: {
     async listarDocentes() {

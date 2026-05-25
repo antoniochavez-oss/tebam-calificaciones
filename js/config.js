@@ -8,11 +8,12 @@ const IS_PROD = location.hostname.endsWith('.pages.dev') ||
 const BASE = IS_PROD ? 'https://tebam-calificaciones.pages.dev' : '..';
 
 const URLS = {
-  login:   `${BASE}/login.html`,
-  docente: `${BASE}/pages/docente.html`,
-  alumno:  `${BASE}/pages/alumno.html`,
-  padre:   `${BASE}/pages/padre.html`,
-  admin:   `${BASE}/pages/admin.html`,
+  login:      `${BASE}/login.html`,
+  docente:    `${BASE}/pages/docente.html`,
+  alumno:     `${BASE}/pages/alumno.html`,
+  padre:      `${BASE}/pages/padre.html`,
+  admin:      `${BASE}/pages/admin.html`,
+  mensajeria: `${BASE}/pages/mensajeria.html`,
 };
 
 // Redirige al portal correcto según el rol
