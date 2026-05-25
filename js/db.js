@@ -483,6 +483,9 @@ const DB = window.DB = {
           qAlumnos = qAlumnos.in('grupo_id', grupoIds);
         const { data: alumnos } = await qAlumnos;
 
+        // perfil_ids de los alumnos — usados para buscar padres
+        const alumnoIds = (alumnos || []).map(a => a.perfil_id).filter(Boolean);
+
         // Padres vinculados a alumnos de sus grupos
         // Primero obtenemos los IDs de registro de alumnos (no perfil_id)
         let padres = [];
