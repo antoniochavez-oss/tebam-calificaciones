@@ -105,14 +105,49 @@
         <div class="tab active" data-tab="cal">Calificaciones</div>
         <div class="tab" data-tab="asis">Asistencia</div>
         <div class="tab" data-tab="acts">Actividades</div>
+        <div class="tab" data-tab="criterios">Criterios</div>
         <div class="tab" data-tab="diario">Diario</div>
         <div class="tab" data-tab="rep">Reporte</div>
         <div class="tab" data-tab="com">Comunicados</div>
       </div>
       <div id="tab-cal"></div>
-      <div id="tab-asis"   style="display:none"></div>
-      <div id="tab-acts"   style="display:none"></div>
-      <div id="tab-diario" style="display:none">
+      <div id="tab-asis"     style="display:none"></div>
+      <div id="tab-acts"     style="display:none"></div>
+      <div id="tab-criterios" style="display:none">
+        <div class="sec-hdr" style="margin-bottom:14px">
+          <div>
+            <div class="sec-title">Criterios de evaluación</div>
+            <div class="sec-sub" id="criteriosSub">Define los criterios y su porcentaje — deben sumar 100%</div>
+          </div>
+          <button class="btn btn-y btn-sm" id="btnNuevoCriterio" onclick="abrirFormCriterio()">+ Agregar criterio</button>
+        </div>
+        <!-- Barra de progreso de porcentaje total -->
+        <div style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
+            <span style="color:var(--grl)">Total asignado</span>
+            <span id="criteriosPct" style="font-weight:600">0%</span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+            <div id="criteriosPctBar" style="height:100%;border-radius:3px;transition:.3s;background:var(--err);width:0%"></div>
+          </div>
+          <div id="criteriosPctMsg" style="font-size:11px;margin-top:5px;display:none"></div>
+        </div>
+        <!-- Formulario inline -->
+        <div id="formCriterio" style="display:none;background:rgba(0,0,0,.2);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid rgba(255,255,255,.08)">
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:10px;margin-bottom:10px">
+            <div><label class="lbl">Nombre del criterio</label><input class="inp" id="cNomCrit" placeholder="Ej. Examen, Tarea, Proyecto…"/></div>
+            <div><label class="lbl">Porcentaje %</label><input class="inp" type="number" id="cPctCrit" min="1" max="100" step="0.5" placeholder="50"/></div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-y btn-sm" onclick="guardarCriterio()">Guardar</button>
+            <button class="btn btn-g btn-sm" onclick="cancelarFormCriterio()">Cancelar</button>
+          </div>
+          <div id="critMsg" style="font-size:12px;margin-top:8px;display:none"></div>
+        </div>
+        <!-- Lista de criterios -->
+        <div id="criteriosLista"></div>
+      </div>
+      <div id="tab-diario"   style="display:none">
         <div class="sec-hdr" style="margin-bottom:14px">
           <div><div class="sec-title">Diario de sesiones</div><div class="sec-sub">Registro cronológico de clases impartidas</div></div>
           <button class="btn btn-y btn-sm" id="btnNuevaSesion" onclick="abrirFormSesion()">+ Nueva sesión</button>
@@ -225,6 +260,15 @@
     <div class="field"><label class="lbl">Valor (pts)</label><input class="inp" type="number" id="acValor" value="10" min="1"/></div>
   </div>
   <div class="field"><label class="lbl">Fecha de entrega</label><input class="inp" type="date" id="acFecha"/></div>
+  <div class="field">
+    <label class="lbl">Criterio de evaluación <span style="color:var(--gr);font-weight:400">(opcional)</span></label>
+    <select class="sel" id="acCriterio">
+      <option value="">— Sin criterio asignado —</option>
+    </select>
+    <div id="acCriterioMsg" style="font-size:11px;color:var(--warn);margin-top:4px;display:none">
+      ⚠ Los criterios no suman 100% — configúralos en el tab "Criterios" antes de capturar calificaciones.
+    </div>
+  </div>
   <div class="modal-acts">
     <button class="btn btn-g" onclick="UI.closeModal('mActividad')">Cancelar</button>
     <button class="btn btn-y" onclick="crearActividad()">Agregar</button>
@@ -469,13 +513,14 @@ async function eliminarMateria(id){
 
 /* ══ CACHE ══ */
 async function loadCacheMateria(){
-  const [alumnos,actividades,califs,asistencia]=await Promise.all([
+  const [alumnos,actividades,califs,asistencia,criterios]=await Promise.all([
     DB.alumnos.listarPorGrupo(CUR.grupo.id),
     DB.actividades.listar(CUR.materia.id),
     DB.calificaciones.listarPorMateria(CUR.materia.id),
     DB.asistencia.listarPorMateria(CUR.materia.id),
+    DB.criterios.listar(CUR.materia.id),
   ]);
-  cache={alumnos,actividades,califs,asistencia};
+  cache={alumnos,actividades,califs,asistencia,criterios};
 }
 
 /* ══ TABS ══ */
@@ -483,30 +528,61 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>acti
 function activateTab(tab){
   CUR_TAB=tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['cal','asis','acts','diario','rep','com'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===tab?'block':'none';});
-  if(tab==='cal') renderGradebook();
-  if(tab==='asis')   renderAsistencia();
-  if(tab==='acts')   renderActividades();
-  if(tab==='diario') renderDiario();
-  if(tab==='rep')    renderReporte();
-  if(tab==='com')    renderComunicadosTab();
+  ['cal','asis','acts','criterios','diario','rep','com'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===tab?'block':'none';});
+  if(tab==='cal')      renderGradebook();
+  if(tab==='asis')     renderAsistencia();
+  if(tab==='acts')     renderActividades();
+  if(tab==='criterios')renderCriterios();
+  if(tab==='diario')   renderDiario();
+  if(tab==='rep')      renderReporte();
+  if(tab==='com')      renderComunicadosTab();
 }
 
 /* ══ GRADEBOOK ══ */
 function renderGradebook(){
-  const{alumnos,actividades,califs}=cache;
+  const{alumnos,actividades,califs,criterios}=cache;
   if(!alumnos.length){document.getElementById('tab-cal').innerHTML=`<div class="empty"><div class="empty-ico">👥</div><p>Agrega alumnos o importa un CSV</p></div>`;return;}
-  const thActs=actividades.map(a=>`<th>${UI.tipoIcon(a.tipo)} ${UI.esc(a.nombre)}</th>`).join('');
+
+  // Verificar si criterios están configurados y suman 100%
+  const crit = criterios || [];
+  const sumaCrit = DB.criterios.sumaPorcentajes(crit);
+  const critActivos = crit.length > 0;
+  const critCompletos = Math.abs(sumaCrit - 100) < 0.01;
+  const bloquear = critActivos && !critCompletos;
+
+  if (bloquear) {
+    document.getElementById('tab-cal').innerHTML = `
+      <div style="background:rgba(232,160,32,.1);border:1px solid rgba(232,160,32,.3);border-radius:12px;padding:20px;text-align:center;margin-top:10px">
+        <div style="font-size:28px;margin-bottom:10px">⚠️</div>
+        <div style="font-size:15px;font-weight:600;color:var(--warn);margin-bottom:8px">Captura bloqueada</div>
+        <div style="font-size:13px;color:var(--grl);line-height:1.6">
+          Los criterios de evaluación suman <b>${sumaCrit.toFixed(1)}%</b> — deben sumar exactamente <b>100%</b>.<br>
+          Ve al tab <b>Criterios</b> y ajusta los porcentajes para habilitar la captura.
+        </div>
+      </div>`;
+    return;
+  }
+
+  const usarPonderado = critActivos && critCompletos;
+  const thActs=actividades.map(a=>{
+    const c = crit.find(x=>x.id===a.criterio_id);
+    return `<th title="${c?c.nombre+' '+c.porcentaje+'%':''}">${UI.tipoIcon(a.tipo)} ${UI.esc(a.nombre)}${c?`<br><span style="font-size:9px;color:var(--gr);font-weight:400">${c.nombre}</span>`:''}`;
+  }).join('');
   const rows=alumnos.map((al,i)=>{
     const grades=califs[al.id]||{};
     const cells=actividades.map(a=>{
       const v=grades[a.id]?.valor??'';
       return `<td><input class="grade-in" type="number" min="0" max="${a.valor_max}" value="${v!==''?v:''}" placeholder="—" onchange="saveGrade('${al.id}','${a.id}',this.value)"/></td>`;
     }).join('');
-    const avg=UI.calcAvg(grades,actividades);
+    const avg = usarPonderado
+      ? DB.criterios.calcPonderado(crit, actividades, Object.fromEntries(Object.entries(grades).map(([k,v])=>[k,v?.valor])))
+      : UI.calcAvg(grades,actividades);
     return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(al.nombre)}</td>${cells}<td class="avg ${UI.avgClass(avg)}">${avg!==null?avg.toFixed(1):'—'}</td><td><button class="btn btn-d btn-sm" onclick="eliminarAlumno('${al.id}')">✕</button></td></tr>`;
   }).join('');
-  document.getElementById('tab-cal').innerHTML=`<div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th>${thActs}<th>Prom.</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const hdrLabel = usarPonderado ? 'Prom. ponderado' : 'Prom.';
+  document.getElementById('tab-cal').innerHTML=`
+    ${usarPonderado?'<div style="font-size:11px;color:var(--ok);margin-bottom:8px">✓ Evaluación ponderada activa</div>':''}
+    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th>${thActs}<th>${hdrLabel}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 async function saveGrade(alumnoId,actId,val){
   const valor=val===''?null:Number(val);
@@ -536,7 +612,16 @@ async function eliminarAlumno(id){
 async function crearActividad(){
   const nombre=document.getElementById('acNom').value.trim();
   if(!nombre){UI.toast('Escribe el nombre','err');return;}
-  const data=await DB.actividades.crear({materia_id:CUR.materia.id,nombre,tipo:document.getElementById('acTipo').value,fecha:document.getElementById('acFecha').value||null,valor_max:parseFloat(document.getElementById('acValor').value)||10,orden:cache.actividades.length+1});
+  const criterioId=document.getElementById('acCriterio').value||null;
+  const data=await DB.actividades.crear({
+    materia_id:CUR.materia.id,
+    nombre,
+    tipo:document.getElementById('acTipo').value,
+    fecha:document.getElementById('acFecha').value||null,
+    valor_max:parseFloat(document.getElementById('acValor').value)||10,
+    orden:cache.actividades.length+1,
+    criterio_id:criterioId||undefined,
+  });
   cache.actividades.push(data);
   UI.closeModal('mActividad');document.getElementById('acNom').value='';
   UI.toast('Actividad agregada ✓');
@@ -611,7 +696,16 @@ async function marcarTodos(estado){
 /* ══ REPORTE ══ */
 function renderReporte(){
   const{alumnos,actividades,asistencia}=cache;
-  const avgs=alumnos.map(al=>({al,avg:UI.calcAvg(cache.califs[al.id]||{},actividades)}));
+  const crit = cache.criterios || [];
+  const usarPond = crit.length > 0 && Math.abs(DB.criterios.sumaPorcentajes(crit) - 100) < 0.01;
+
+  const avgs=alumnos.map(al=>{
+    const grades = cache.califs[al.id] || {};
+    const avg = usarPond
+      ? DB.criterios.calcPonderado(crit, actividades, Object.fromEntries(Object.entries(grades).map(([k,v])=>[k,v?.valor])))
+      : UI.calcAvg(grades, actividades);
+    return {al, avg};
+  });
   const validos=avgs.filter(x=>x.avg!==null);
   const grupoAvg=validos.length?(validos.reduce((s,x)=>s+x.avg,0)/validos.length).toFixed(1):'—';
   const aprobados=validos.filter(x=>x.avg>=6).length;
@@ -974,6 +1068,160 @@ async function eliminarSesion(id) {
   await DB.sesiones.eliminar(id);
   UI.toast('Sesión eliminada');
   await renderDiario();
+}
+
+/* ══ CRITERIOS DE EVALUACION ══ */
+let criterioEditandoId = null;
+
+async function renderCriterios() {
+  const lista = document.getElementById('criteriosLista');
+  lista.innerHTML = '<div style="color:var(--gr);font-size:13px;padding:8px">Cargando...</div>';
+  cache.criterios = await DB.criterios.listar(CUR.materia.id);
+  actualizarBarraPct();
+  renderListaCriterios();
+  // Poblar selector en modal de actividades
+  poblarSelectorCriterios();
+}
+
+function renderListaCriterios() {
+  const lista = document.getElementById('criteriosLista');
+  const crit  = cache.criterios || [];
+  if (!crit.length) {
+    lista.innerHTML = `<div class="empty"><div class="empty-ico">📊</div>
+      <p>Sin criterios. Agrega el primero para habilitar la evaluación ponderada.</p></div>`;
+    return;
+  }
+  lista.innerHTML = crit.map(c => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(0,0,0,.15);border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06)">
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:var(--tx1)">${UI.esc(c.nombre)}</div>
+      </div>
+      <div style="font-size:20px;font-weight:700;color:var(--y);min-width:60px;text-align:right">${Number(c.porcentaje).toFixed(1)}%</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-g btn-sm" onclick="editarCriterio('${c.id}')">✏️</button>
+        <button class="btn btn-g btn-sm" onclick="eliminarCriterio('${c.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function actualizarBarraPct() {
+  const crit  = cache.criterios || [];
+  const suma  = DB.criterios.sumaPorcentajes(crit);
+  const pct   = Math.min(suma, 100);
+  const bar   = document.getElementById('criteriosPctBar');
+  const lbl   = document.getElementById('criteriosPct');
+  const msg   = document.getElementById('criteriosPctMsg');
+
+  lbl.textContent = `${suma.toFixed(1)}%`;
+  bar.style.width = `${pct}%`;
+
+  if (Math.abs(suma - 100) < 0.01) {
+    bar.style.background = 'var(--ok)';
+    msg.style.display = 'none';
+    document.getElementById('criteriosSub').textContent = '✓ Los criterios suman 100% — la evaluación ponderada está activa';
+  } else if (suma > 100) {
+    bar.style.background = 'var(--err)';
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = `⚠ Los criterios suman ${suma.toFixed(1)}% — reduce ${(suma-100).toFixed(1)}% para activar la evaluación ponderada`;
+    document.getElementById('criteriosSub').textContent = 'Define los criterios y su porcentaje — deben sumar exactamente 100%';
+  } else {
+    bar.style.background = 'var(--warn)';
+    msg.style.display = 'block'; msg.style.color = 'var(--warn)';
+    msg.textContent = `Faltan ${(100-suma).toFixed(1)}% para completar el 100%`;
+    document.getElementById('criteriosSub').textContent = 'Define los criterios y su porcentaje — deben sumar exactamente 100%';
+  }
+}
+
+function poblarSelectorCriterios() {
+  const sel  = document.getElementById('acCriterio');
+  if (!sel) return;
+  const crit = cache.criterios || [];
+  const suma = DB.criterios.sumaPorcentajes(crit);
+  const ok   = Math.abs(suma - 100) < 0.01;
+
+  sel.innerHTML = '<option value="">— Sin criterio asignado —</option>' +
+    crit.map(c => `<option value="${c.id}">${UI.esc(c.nombre)} (${Number(c.porcentaje).toFixed(0)}%)</option>`).join('');
+
+  const msgEl = document.getElementById('acCriterioMsg');
+  if (msgEl) msgEl.style.display = (!ok && crit.length > 0) ? 'block' : 'none';
+}
+
+function abrirFormCriterio(c = null) {
+  criterioEditandoId = c?.id || null;
+  document.getElementById('cNomCrit').value = c?.nombre || '';
+  document.getElementById('cPctCrit').value = c?.porcentaje || '';
+  document.getElementById('critMsg').style.display = 'none';
+  document.getElementById('formCriterio').style.display = 'block';
+  document.getElementById('cNomCrit').focus();
+}
+
+function cancelarFormCriterio() {
+  criterioEditandoId = null;
+  document.getElementById('formCriterio').style.display = 'none';
+}
+
+async function guardarCriterio() {
+  const nombre     = document.getElementById('cNomCrit').value.trim();
+  const porcentaje = parseFloat(document.getElementById('cPctCrit').value);
+  const msg        = document.getElementById('critMsg');
+
+  if (!nombre) { mostrarCritMsg('Escribe el nombre del criterio.', 'err'); return; }
+  if (isNaN(porcentaje) || porcentaje <= 0 || porcentaje > 100) {
+    mostrarCritMsg('El porcentaje debe ser entre 1 y 100.', 'err'); return;
+  }
+
+  // Verificar que no exceda 100% sumando con los demás
+  const otros = (cache.criterios || []).filter(c => c.id !== criterioEditandoId);
+  const sumaOtros = DB.criterios.sumaPorcentajes(otros);
+  if (sumaOtros + porcentaje > 100.01) {
+    mostrarCritMsg(`Los criterios sumarían ${(sumaOtros + porcentaje).toFixed(1)}% — excede el 100%.`, 'err');
+    return;
+  }
+
+  try {
+    if (criterioEditandoId) {
+      const updated = await DB.criterios.actualizar(criterioEditandoId, {
+        nombre, porcentaje, orden: (cache.criterios.find(c=>c.id===criterioEditandoId)?.orden || 0)
+      });
+      const idx = cache.criterios.findIndex(c=>c.id===criterioEditandoId);
+      if (idx !== -1) cache.criterios[idx] = updated;
+    } else {
+      const nuevo = await DB.criterios.crear({
+        materia_id: CUR.materia.id, nombre, porcentaje,
+        orden: (cache.criterios || []).length + 1
+      });
+      cache.criterios = [...(cache.criterios || []), nuevo];
+    }
+    cancelarFormCriterio();
+    actualizarBarraPct();
+    renderListaCriterios();
+    poblarSelectorCriterios();
+    UI.toast('✓ Criterio guardado');
+  } catch(e) {
+    mostrarCritMsg('Error: ' + e.message, 'err');
+  }
+}
+
+async function editarCriterio(id) {
+  const c = (cache.criterios || []).find(x => x.id === id);
+  if (c) abrirFormCriterio(c);
+}
+
+async function eliminarCriterio(id) {
+  if (!confirm('¿Eliminar este criterio? Las actividades asignadas quedarán sin criterio.')) return;
+  await DB.criterios.eliminar(id);
+  cache.criterios = (cache.criterios || []).filter(c => c.id !== id);
+  actualizarBarraPct();
+  renderListaCriterios();
+  poblarSelectorCriterios();
+  UI.toast('Criterio eliminado');
+}
+
+function mostrarCritMsg(txt, tipo) {
+  const el = document.getElementById('critMsg');
+  el.style.display = 'block';
+  el.style.color   = tipo === 'ok' ? 'var(--ok)' : tipo === 'warn' ? 'var(--warn)' : 'var(--err)';
+  el.textContent   = txt;
 }
 </script>
 </body>
