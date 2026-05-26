@@ -277,12 +277,23 @@
 </div>
 </div>
 
-<!-- MODAL: Gestionar grupo (materias y docentes) -->
-<div class="overlay" id="mGrupoAdmin"><div class="modal" style="max-width:560px;max-height:80vh;overflow-y:auto">
+<!-- MODAL: Gestionar grupo (docentes asignados) -->
+<div class="overlay" id="mGrupoAdmin"><div class="modal" style="max-width:520px">
   <div class="modal-title">🏫 <span id="mGrupoTitulo">Grupo</span></div>
-  <div style="font-size:12px;color:var(--gr);margin-bottom:14px">Asigna un docente a cada materia del grupo</div>
-  <div id="mGrupoLista"></div>
-  <div class="modal-acts" style="margin-top:16px">
+  <input type="hidden" id="mGrupoGrupoId"/>
+  <div style="font-size:12px;color:var(--gr);margin-bottom:14px">
+    Los docentes asignados al grupo podrán ver el grupo en su portal y crear sus materias.
+  </div>
+  <div class="lbl" style="margin-bottom:8px">Docentes asignados</div>
+  <div id="mGrupoAsignados" style="margin-bottom:16px"></div>
+  <div class="lbl" style="margin-bottom:8px">Agregar docente</div>
+  <div style="display:flex;gap:8px">
+    <select class="sel" id="mGrupoSelectDoc" style="flex:1">
+      <option value="">— Selecciona docente —</option>
+    </select>
+    <button class="btn btn-y" onclick="agregarDocenteGrupo()">+ Agregar</button>
+  </div>
+  <div class="modal-acts" style="margin-top:20px">
     <button class="btn btn-g" onclick="UI.closeModal('mGrupoAdmin')">Cerrar</button>
   </div>
 </div></div>
@@ -547,57 +558,72 @@ async function renderGruposAdmin() {
 }
 
 async function abrirGrupoAdmin(grupoId, grupoNombre, cicloNombre) {
-  // Cargar materias del grupo con docente asignado
-  const { data: materias } = await sb.from('materias')
-    .select('*, docente:perfiles!materias_docente_asignado_id_fkey(id,nombre)')
-    .eq('grupo_id', grupoId)
+  // Cargar docentes actualmente asignados al grupo
+  const { data: asignados } = await sb.from('grupo_docentes')
+    .select('docente_id, docente:perfiles!grupo_docentes_docente_id_fkey(id, nombre, email)')
+    .eq('grupo_id', grupoId);
+
+  // Cargar todos los docentes disponibles
+  const { data: todos } = await sb.from('perfiles')
+    .select('id, nombre, email')
+    .in('rol', ['docente', 'coordinador'])
     .order('nombre');
 
-  // Cargar lista de docentes disponibles
-  const { data: docentes } = await sb.from('perfiles')
-    .select('id, nombre')
-    .in('rol', ['docente','admin','coordinador'])
-    .order('nombre');
-
-  const mats = materias || [];
-  const docs = docentes || [];
+  const asignadosIds = (asignados||[]).map(a => a.docente_id);
+  const disponibles  = (todos||[]).filter(d => !asignadosIds.includes(d.id));
 
   document.getElementById('mGrupoTitulo').textContent = `${grupoNombre} · ${cicloNombre}`;
-  document.getElementById('mGrupoLista').innerHTML = mats.length
-    ? mats.map(m => `
-      <div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)">
-        <div style="font-size:13px;font-weight:600;color:var(--tx1);margin-bottom:8px">${UI.esc(m.nombre)}</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <select class="sel" id="doc-${m.id}" style="flex:1;font-size:12px;padding:7px 10px">
-            <option value="">— Sin docente asignado —</option>
-            ${docs.map(d=>`<option value="${d.id}" ${m.docente_asignado_id===d.id?'selected':''}>${UI.esc(d.nombre)}</option>`).join('')}
-          </select>
-          <button class="btn btn-y btn-sm" onclick="asignarDocente('${m.id}')">Asignar</button>
+  document.getElementById('mGrupoGrupoId').value = grupoId;
+
+  // Docentes asignados
+  const listaAsig = document.getElementById('mGrupoAsignados');
+  listaAsig.innerHTML = (asignados||[]).length
+    ? (asignados||[]).map(a => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(114,201,111,.08);border:1px solid rgba(114,201,111,.2);border-radius:8px;margin-bottom:6px">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--tx1)">${UI.esc(a.docente?.nombre||'—')}</div>
+          <div style="font-size:11px;color:var(--gr)">${UI.esc(a.docente?.email||'')}</div>
         </div>
-        <div style="font-size:11px;color:var(--gr);margin-top:4px">
-          ${m.docente ? `✓ Actualmente: ${UI.esc(m.docente.nombre)}` : 'Sin docente asignado'}
-        </div>
-      </div>`).join('')
-    : '<div style="color:var(--gr);font-size:13px;padding:16px">Sin materias en este grupo. Créalas desde el Portal Docente.</div>';
+        <button class="btn btn-d btn-sm" onclick="quitarDocente('${grupoId}','${a.docente_id}')">✕ Quitar</button>
+      </div>`)
+      .join('')
+    : '<div style="font-size:12px;color:var(--gr);padding:8px">Sin docentes asignados aún.</div>';
+
+  // Selector para agregar
+  const sel = document.getElementById('mGrupoSelectDoc');
+  sel.innerHTML = '<option value="">— Selecciona docente —</option>' +
+    disponibles.map(d => `<option value="${d.id}">${UI.esc(d.nombre)} · ${UI.esc(d.email||'')}</option>`).join('');
 
   UI.openModal('mGrupoAdmin');
 }
 
-async function asignarDocente(materiaId) {
-  const sel = document.getElementById(`doc-${materiaId}`);
-  const docenteId = sel.value || null;
-  const { error } = await sb.from('materias')
-    .update({ docente_asignado_id: docenteId })
-    .eq('id', materiaId);
+async function agregarDocenteGrupo() {
+  const grupoId   = document.getElementById('mGrupoGrupoId').value;
+  const docenteId = document.getElementById('mGrupoSelectDoc').value;
+  if (!docenteId) { UI.toast('Selecciona un docente', 'err'); return; }
+
+  const { error } = await sb.from('grupo_docentes')
+    .upsert({ grupo_id: grupoId, docente_id: docenteId }, { onConflict: 'grupo_id,docente_id' });
+
   if (error) { UI.toast('Error: ' + error.message, 'err'); return; }
-  UI.toast(docenteId ? '✓ Docente asignado' : 'Docente removido');
-  // Actualizar el label de confirmación
-  const info = sel.options[sel.selectedIndex]?.text || 'Sin docente';
-  const parent = sel.closest('div[style*="padding:12px"]');
-  if (parent) {
-    const hint = parent.querySelector('div[style*="font-size:11px"]');
-    if (hint) hint.textContent = docenteId ? `✓ Actualmente: ${info}` : 'Sin docente asignado';
-  }
+  UI.toast('✓ Docente agregado al grupo');
+
+  // Reabrir el modal con datos actualizados
+  const titulo = document.getElementById('mGrupoTitulo').textContent;
+  const [gNom, cNom] = titulo.split(' · ');
+  await abrirGrupoAdmin(grupoId, gNom, cNom);
+}
+
+async function quitarDocente(grupoId, docenteId) {
+  if (!confirm('¿Quitar este docente del grupo?')) return;
+  await sb.from('grupo_docentes')
+    .delete()
+    .eq('grupo_id', grupoId)
+    .eq('docente_id', docenteId);
+  UI.toast('Docente removido del grupo');
+  const titulo = document.getElementById('mGrupoTitulo').textContent;
+  const [gNom, cNom] = titulo.split(' · ');
+  await abrirGrupoAdmin(grupoId, gNom, cNom);
 }
 
 /* ══ REPORTES PDF ══ */
