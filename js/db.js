@@ -687,6 +687,119 @@ const DB = window.DB = {
     },
   },
 
+  // --- TUTORIAS -------------------------------------------------------------
+  tutorias: {
+    async listar(filtro = {}) {
+      let q = sb.from('tutorias')
+        .select('*, alumno:alumnos(nombre, grupo:grupos(nombre)), coordinador:perfiles!tutorias_coordinador_id_fkey(nombre)')
+        .order('fecha', { ascending: false });
+      if (filtro.alumno_id)     q = q.eq('alumno_id', filtro.alumno_id);
+      if (filtro.estado)        q = q.eq('estado', filtro.estado);
+      if (filtro.coordinador_id) q = q.eq('coordinador_id', filtro.coordinador_id);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+    async listarDePadre(padreId) {
+      // Obtener IDs de alumnos del padre
+      const { data: tuts } = await sb.from('tutores').select('alumno_id').eq('padre_id', padreId);
+      const ids = (tuts||[]).map(t => t.alumno_id);
+      if (!ids.length) return [];
+      const { data, error } = await sb.from('tutorias')
+        .select('*, alumno:alumnos(nombre), coordinador:perfiles!tutorias_coordinador_id_fkey(nombre)')
+        .in('alumno_id', ids)
+        .order('fecha', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async crear({ alumno_id, fecha, hora, motivo }) {
+      const { data, error } = await sb.from('tutorias')
+        .insert({ alumno_id, coordinador_id: Auth.user.id, fecha, hora, motivo })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    async actualizarEstado(id, estado) {
+      const { data, error } = await sb.from('tutorias')
+        .update({ estado }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async registrarResultado(id, { acuerdos, observaciones, seguimiento_fecha }) {
+      const { data, error } = await sb.from('tutorias')
+        .update({ acuerdos, observaciones, seguimiento_fecha, estado: 'realizada' })
+        .eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async eliminar(id) {
+      const { error } = await sb.from('tutorias').delete().eq('id', id);
+      if (error) throw error;
+    },
+  },
+
+  // --- DISCIPLINA -----------------------------------------------------------
+  disciplina: {
+    async listarTipos() {
+      const { data, error } = await sb.from('tipos_falta')
+        .select('*').eq('activo', true).order('gravedad').order('nombre');
+      if (error) throw error;
+      return data || [];
+    },
+    async crearTipo({ nombre, descripcion, gravedad }) {
+      const { data, error } = await sb.from('tipos_falta')
+        .insert({ nombre, descripcion, gravedad, created_by: Auth.user.id })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    async actualizarTipo(id, { nombre, descripcion, gravedad, activo }) {
+      const { data, error } = await sb.from('tipos_falta')
+        .update({ nombre, descripcion, gravedad, activo }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async listarFaltas(filtro = {}) {
+      let q = sb.from('faltas_disciplina')
+        .select('*, alumno:alumnos(nombre, grupo:grupos(nombre)), docente:perfiles!faltas_disciplina_docente_id_fkey(nombre), tipo:tipos_falta(nombre, gravedad)')
+        .order('fecha_hora', { ascending: false });
+      if (filtro.alumno_id)  q = q.eq('alumno_id', filtro.alumno_id);
+      if (filtro.docente_id) q = q.eq('docente_id', filtro.docente_id);
+      if (filtro.resuelta !== undefined) q = q.eq('resuelta', filtro.resuelta);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data || [];
+    },
+    async listarDePadre(padreId) {
+      const { data: tuts } = await sb.from('tutores').select('alumno_id').eq('padre_id', padreId);
+      const ids = (tuts||[]).map(t => t.alumno_id);
+      if (!ids.length) return [];
+      const { data, error } = await sb.from('faltas_disciplina')
+        .select('*, tipo:tipos_falta(nombre, gravedad), alumno:alumnos(nombre)')
+        .in('alumno_id', ids)
+        .order('fecha_hora', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async registrarFalta({ alumno_id, tipo_falta_id, descripcion }) {
+      const { data, error } = await sb.from('faltas_disciplina')
+        .insert({ alumno_id, docente_id: Auth.user.id, tipo_falta_id, descripcion })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    async marcarResuelta(id, resuelta = true) {
+      const { data, error } = await sb.from('faltas_disciplina')
+        .update({ resuelta }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async eliminarFalta(id) {
+      const { error } = await sb.from('faltas_disciplina').delete().eq('id', id);
+      if (error) throw error;
+    },
+  },
+
   // --- SESIONES (Diario de clase) -------------------------------------------
   sesiones: {
     async listar(materiaId) {
