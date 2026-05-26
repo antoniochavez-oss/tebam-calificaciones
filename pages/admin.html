@@ -66,17 +66,21 @@
     <div class="sb-subtitle">Panel Administrativo</div>
   </div>
   <nav class="sb-nav">
-    <div class="sb-sec">Plantel</div>
-    <div class="nav-item active" id="nav-dashboard" onclick="navTo('dashboard')"><span class="ico">📊</span> Dashboard</div>
-    <div class="nav-item" id="nav-usuarios"   onclick="navTo('usuarios')">  <span class="ico">👥</span> Usuarios</div>
-    <div class="nav-item" id="nav-grupos"     onclick="navTo('grupos')">    <span class="ico">🏫</span> Grupos</div>
-    <div class="nav-item" id="nav-reportes"   onclick="navTo('reportes')">  <span class="ico">📈</span> Reportes</div>
-    <div class="sb-sec">Herramientas</div>
-    <div class="nav-item" onclick="location.href=URLS.mensajeria"><span class="ico">✉️</span> Mensajería<span id="msgBadgeAdm" style="background:#e05a4e;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:6px;display:none">0</span></div>
-    <div class="nav-item" id="nav-crear-usuario"   onclick="navTo('crear-usuario')">  <span class="ico">➕</span> Nuevo Usuario</div>
-    <div class="nav-item" id="nav-doc-autorizados" onclick="navTo('doc-autorizados')"><span class="ico">🔑</span> Docentes autorizados</div>
-    <div class="nav-item" id="nav-importar"        onclick="navTo('importar')">        <span class="ico">📋</span> Importar alumnos</div>
-    <div class="nav-item" onclick="location.href=URLS.docente"><span class="ico">🎓</span> Portal Docente</div>
+    <div class="sb-sec">Académico</div>
+    <div class="nav-item active" id="nav-dashboard"  onclick="navTo('dashboard')">  <span class="ico">📊</span> Dashboard</div>
+    <div class="nav-item"        id="nav-grupos"      onclick="navTo('grupos')">      <span class="ico">🏫</span> Grupos y Materias</div>
+    <div class="nav-item"        id="nav-reportes"    onclick="navTo('reportes')">    <span class="ico">📈</span> Reportes PDF</div>
+    <div class="sb-sec">Usuarios</div>
+    <div class="nav-item"        id="nav-usuarios"       onclick="navTo('usuarios')">       <span class="ico">👥</span> Todos los usuarios</div>
+    <div class="nav-item"        id="nav-crear-usuario"  onclick="navTo('crear-usuario')">  <span class="ico">➕</span> Nuevo usuario</div>
+    <div class="nav-item"        id="nav-doc-autorizados" onclick="navTo('doc-autorizados')"><span class="ico">🔑</span> Códigos docentes</div>
+    <div class="nav-item"        id="nav-importar"       onclick="navTo('importar')">       <span class="ico">📋</span> Importar alumnos</div>
+    <div class="sb-sec">Módulos</div>
+    <div class="nav-item"        id="nav-catalogo"    onclick="navTo('catalogo')">    <span class="ico">⚠️</span> Catálogo de faltas</div>
+    <div class="nav-item"        id="nav-disciplina-a" onclick="navTo('disciplina-a')"><span class="ico">📋</span> Incidencias</div>
+    <div class="nav-item"        id="nav-tutorias-a"  onclick="navTo('tutorias-a')"> <span class="ico">📅</span> Tutorías</div>
+    <div class="nav-item"        onclick="location.href=URLS.mensajeria"><span class="ico">✉️</span> Mensajería</div>
+    <div class="nav-item"        onclick="location.href=URLS.docente">   <span class="ico">🎓</span> Portal Docente</div>
   </nav>
   <div class="sb-foot">
     <div class="user-avatar">A</div>
@@ -223,6 +227,52 @@
       </div>
     </div>
 
+    <!-- CATALOGO DE FALTAS -->
+    <div class="view" id="view-catalogo">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Catálogo de faltas</div><div class="sec-sub">Define los tipos de falta disponibles para el plantel</div></div>
+        <button class="btn btn-y" onclick="abrirModalTipoFalta()">+ Nuevo tipo</button>
+      </div>
+      <div id="catalogoLista"></div>
+    </div>
+
+    <!-- DISCIPLINA GLOBAL -->
+    <div class="view" id="view-disciplina-a">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Incidencias</div><div class="sec-sub">Historial completo del plantel</div></div>
+        <button class="btn btn-g btn-sm" onclick="exportarDisciplinaCSV()">📥 Exportar CSV</button>
+      </div>
+      <div class="filter-row" style="gap:8px;margin-bottom:14px">
+        <input class="search-inp" id="searchDisciplinaA" placeholder="🔍 Buscar alumno…" oninput="renderDisciplinaAdmin()"/>
+        <select class="sel" id="filtroGravedadA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
+          <option value="">Todas las gravedades</option>
+          <option value="leve">Leve</option>
+          <option value="grave">Grave</option>
+          <option value="muy_grave">Muy grave</option>
+        </select>
+        <select class="sel" id="filtroResueltaA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
+          <option value="">Todas</option>
+          <option value="false">Activas</option>
+          <option value="true">Resueltas</option>
+        </select>
+      </div>
+      <div id="disciplinaAdminLista"></div>
+    </div>
+
+    <!-- TUTORIAS GLOBAL -->
+    <div class="view" id="view-tutorias-a">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Tutorías</div><div class="sec-sub">Todas las citas del plantel</div></div>
+      </div>
+      <div class="filter-row" style="gap:8px;margin-bottom:14px">
+        <div class="filter-chip active" data-ta="todos"      onclick="setFiltroTutA(this,'todos')">Todas</div>
+        <div class="filter-chip"        data-ta="pendiente"  onclick="setFiltroTutA(this,'pendiente')">Pendientes</div>
+        <div class="filter-chip"        data-ta="confirmada" onclick="setFiltroTutA(this,'confirmada')">Confirmadas</div>
+        <div class="filter-chip"        data-ta="realizada"  onclick="setFiltroTutA(this,'realizada')">Realizadas</div>
+      </div>
+      <div id="tutoriasAdminLista"></div>
+    </div>
+
   </div>
 </div>
 </div>
@@ -311,9 +361,11 @@ async function navTo(view) {
   if (view === 'usuarios')        await renderUsuarios();
   if (view === 'grupos')          await renderGruposAdmin();
   if (view === 'reportes')        await renderReportes();
-  if (view === 'crear-usuario')   await cargarGruposSelect();
   if (view === 'doc-autorizados') await renderDocAutorizados();
   if (view === 'importar')        await cargarCiclosImport();
+  if (view === 'catalogo')        await renderCatalogo();
+  if (view === 'disciplina-a')    await renderDisciplinaAdminInit();
+  if (view === 'tutorias-a')      await renderTutoriasAdmin();
 }
 
 /* ══ DASHBOARD ══ */
@@ -1090,6 +1142,185 @@ function descargarPlantillaAlumnos() {
   a.click();
 }
 
+</script>
+
+<!-- MODAL: Tipo de falta -->
+<div class="overlay" id="mTipoFalta"><div class="modal" style="max-width:440px">
+  <div class="modal-title">⚠️ Tipo de falta</div>
+  <input type="hidden" id="tipoFaltaId"/>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="tipoFaltaNom" placeholder="Ej. Uso de celular"/></div>
+  <div class="field"><label class="lbl">Descripción (opcional)</label><input class="inp" id="tipoFaltaDesc" placeholder="Detalles del tipo de falta…"/></div>
+  <div class="field">
+    <label class="lbl">Gravedad</label>
+    <select class="sel" id="tipoFaltaGrav">
+      <option value="leve">🟢 Leve</option>
+      <option value="grave">🟡 Grave</option>
+      <option value="muy_grave">🔴 Muy grave</option>
+    </select>
+  </div>
+  <div id="tipoFaltaMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mTipoFalta')">Cancelar</button>
+    <button class="btn btn-y" onclick="guardarTipoFalta()">Guardar</button>
+  </div>
+</div></div>
+
+<script>
+/* ══ CATALOGO DE FALTAS ══ */
+let todosTiposFalta = [];
+
+async function renderCatalogo() {
+  const { data } = await sb.from('tipos_falta').select('*').order('gravedad').order('nombre');
+  todosTiposFalta = data || [];
+  const el = document.getElementById('catalogoLista');
+  if (!todosTiposFalta.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">⚠️</div><p>Sin tipos de falta. Agrega el primero.</p></div>';
+    return;
+  }
+  const GRAV = { leve:'🟢', grave:'🟡', muy_grave:'🔴' };
+  el.innerHTML = todosTiposFalta.map(t => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,0,0,.15);border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06);${!t.activo?'opacity:.5':''}">
+      <div style="font-size:20px">${GRAV[t.gravedad]||'⚪'}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:600;color:var(--tx1)">${UI.esc(t.nombre)} ${!t.activo?'<span style="font-size:10px;color:var(--gr)">(inactivo)</span>':''}</div>
+        <div style="font-size:12px;color:var(--gr)">${t.gravedad.replace('_',' ').toUpperCase()}${t.descripcion?' · '+UI.esc(t.descripcion):''}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-g btn-sm" onclick="editarTipoFalta('${t.id}')">✏️</button>
+        <button class="btn btn-g btn-sm" onclick="toggleTipoFalta('${t.id}',${!t.activo})">${t.activo?'🚫':'✓'}</button>
+      </div>
+    </div>`).join('');
+}
+
+function abrirModalTipoFalta(t = null) {
+  document.getElementById('tipoFaltaId').value  = t?.id || '';
+  document.getElementById('tipoFaltaNom').value = t?.nombre || '';
+  document.getElementById('tipoFaltaDesc').value = t?.descripcion || '';
+  document.getElementById('tipoFaltaGrav').value = t?.gravedad || 'leve';
+  document.getElementById('tipoFaltaMsg').style.display = 'none';
+  UI.openModal('mTipoFalta');
+}
+
+function editarTipoFalta(id) {
+  const t = todosTiposFalta.find(x => x.id === id);
+  if (t) abrirModalTipoFalta(t);
+}
+
+async function toggleTipoFalta(id, activo) {
+  await sb.from('tipos_falta').update({ activo }).eq('id', id);
+  UI.toast(activo ? 'Tipo activado' : 'Tipo desactivado');
+  await renderCatalogo();
+}
+
+async function guardarTipoFalta() {
+  const id   = document.getElementById('tipoFaltaId').value;
+  const nombre = document.getElementById('tipoFaltaNom').value.trim();
+  const msg  = document.getElementById('tipoFaltaMsg');
+  if (!nombre) { msg.style.display='block';msg.style.color='var(--err)';msg.textContent='Escribe el nombre.';return; }
+  const payload = {
+    nombre,
+    descripcion: document.getElementById('tipoFaltaDesc').value.trim() || null,
+    gravedad:    document.getElementById('tipoFaltaGrav').value,
+  };
+  if (id) {
+    await sb.from('tipos_falta').update(payload).eq('id', id);
+    UI.toast('✓ Tipo actualizado');
+  } else {
+    await sb.from('tipos_falta').insert({ ...payload, created_by: Auth.user.id });
+    UI.toast('✓ Tipo creado');
+  }
+  UI.closeModal('mTipoFalta');
+  await renderCatalogo();
+}
+
+/* ══ DISCIPLINA ADMIN ══ */
+let todasFaltasAdmin = [];
+
+async function renderDisciplinaAdminInit() {
+  const { data } = await sb.from('faltas_disciplina')
+    .select('*, alumno:alumnos(nombre, grupo:grupos(nombre)), docente:perfiles!faltas_disciplina_docente_id_fkey(nombre), tipo:tipos_falta(nombre, gravedad)')
+    .order('fecha_hora', { ascending: false });
+  todasFaltasAdmin = data || [];
+  const el = document.getElementById('disciplinaAdminLista');
+  el.innerHTML = `<div style="font-size:12px;color:var(--gr);margin-bottom:10px">${todasFaltasAdmin.length} incidencias totales</div>`;
+  renderDisciplinaAdmin();
+}
+
+const GRAV_A = { leve:{lbl:'LEVE',c:'#EAF3DE',tc:'#27500A'}, grave:{lbl:'GRAVE',c:'#FAEEDA',tc:'#633806'}, muy_grave:{lbl:'MUY GRAVE',c:'#FCEBEB',tc:'#791F1F'} };
+
+function renderDisciplinaAdmin() {
+  const el  = document.getElementById('disciplinaAdminLista');
+  const q   = (document.getElementById('searchDisciplinaA')?.value||'').toLowerCase();
+  const gf  = document.getElementById('filtroGravedadA')?.value||'';
+  const rf  = document.getElementById('filtroResueltaA')?.value||'';
+  let lista = todasFaltasAdmin.filter(f => {
+    const mq = !q || (f.alumno?.nombre||'').toLowerCase().includes(q) || (f.tipo?.nombre||'').toLowerCase().includes(q);
+    const mg = !gf || f.tipo?.gravedad === gf;
+    const mr = rf==='' ? true : rf==='true' ? f.resuelta : !f.resuelta;
+    return mq && mg && mr;
+  });
+  el.innerHTML = `<div style="font-size:12px;color:var(--gr);margin-bottom:10px">${lista.length} de ${todasFaltasAdmin.length} incidencias</div>` +
+    (lista.length ? lista.map(f => {
+      const g = GRAV_A[f.tipo?.gravedad] || GRAV_A.leve;
+      const dt = f.fecha_hora ? new Date(f.fecha_hora).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      return `<div style="background:rgba(0,0,0,.15);border-radius:10px;padding:12px 16px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06);${f.resuelta?'opacity:.6':''}">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="background:${g.c};color:${g.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${g.lbl}</span>
+          ${f.resuelta ? '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">RESUELTA</span>' : ''}
+        </div>
+        <div style="font-size:14px;font-weight:600;color:var(--y)">${UI.esc(f.alumno?.nombre||'—')} · ${UI.esc(f.alumno?.grupo?.nombre||'')}</div>
+        <div style="font-size:12px;color:var(--gr)">${UI.esc(f.tipo?.nombre||'—')} · Docente: ${UI.esc(f.docente?.nombre||'—')} · ${dt}</div>
+        ${f.descripcion ? `<div style="font-size:12px;color:var(--tx2);margin-top:4px">${UI.esc(f.descripcion)}</div>` : ''}
+      </div>`;
+    }).join('') : '<div class="empty"><div class="empty-ico">✅</div><p>Sin incidencias con ese filtro</p></div>');
+}
+
+function exportarDisciplinaCSV() {
+  const rows = [['Alumno','Grupo','Tipo','Gravedad','Docente','Fecha','Resuelta','Descripcion']];
+  todasFaltasAdmin.forEach(f => {
+    const dt = f.fecha_hora ? new Date(f.fecha_hora).toLocaleString('es-MX') : '';
+    rows.push([f.alumno?.nombre||'',f.alumno?.grupo?.nombre||'',f.tipo?.nombre||'',f.tipo?.gravedad||'',f.docente?.nombre||'',dt,f.resuelta?'Sí':'No',f.descripcion||'']);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `incidencias_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  UI.toast('✓ CSV exportado');
+}
+
+/* ══ TUTORIAS ADMIN ══ */
+let filtroTutAdmin = 'todos';
+const ESTADO_TUT_A = { pendiente:{lbl:'PENDIENTE',c:'#FAEEDA',tc:'#633806'}, confirmada:{lbl:'CONFIRMADA',c:'#EAF3DE',tc:'#27500A'}, rechazada:{lbl:'RECHAZADA',c:'#FCEBEB',tc:'#791F1F'}, realizada:{lbl:'REALIZADA',c:'#E6F1FB',tc:'#0C447C'} };
+
+async function renderTutoriasAdmin() {
+  const filtro = filtroTutAdmin === 'todos' ? {} : { estado: filtroTutAdmin };
+  const tutorias = await DB.tutorias.listar(filtro);
+  const el = document.getElementById('tutoriasAdminLista');
+  if (!tutorias.length) { el.innerHTML = '<div class="empty"><div class="empty-ico">📅</div><p>Sin tutorías.</p></div>'; return; }
+  el.innerHTML = tutorias.map(t => {
+    const est = ESTADO_TUT_A[t.estado] || ESTADO_TUT_A.pendiente;
+    const fecha = t.fecha ? new Date(t.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}) : '—';
+    return `<div style="background:rgba(0,0,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+        <div>
+          <span style="background:${est.c};color:${est.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${est.lbl}</span>
+          <div style="font-size:14px;font-weight:600;color:var(--y);margin-top:4px">${UI.esc(t.alumno?.nombre||'—')} · ${UI.esc(t.alumno?.grupo?.nombre||'')}</div>
+          <div style="font-size:12px;color:var(--gr)">${fecha} ${t.hora||''} · Coord: ${UI.esc(t.coordinador?.nombre||'—')}</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--tx2)">${UI.esc(t.motivo||'')}</div>
+      ${t.acuerdos ? `<div style="background:rgba(114,201,111,.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12px;color:var(--grl);margin-top:8px"><b>Acuerdos:</b> ${UI.esc(t.acuerdos)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function setFiltroTutA(el, val) {
+  filtroTutAdmin = val;
+  document.querySelectorAll('[data-ta]').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  renderTutoriasAdmin();
+}
 </script>
 </body>
 </html>
