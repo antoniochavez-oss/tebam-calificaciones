@@ -263,10 +263,26 @@ const DB = window.DB = {
   tutores: {
     async alumnosDePadre(padreId) {
       const { data, error } = await sb.from('tutores')
-        .select('*, alumno:alumnos(*, grupo:grupos(nombre, ciclo:ciclos(nombre)))')
+        .select('*, alumno:alumnos(*, grupo:grupos(id, nombre, ciclo_id))')
         .eq('padre_id', padreId);
       if (error) throw error;
-      return data || [];
+      const tutores = data || [];
+
+      // Obtener ciclos por separado para evitar JOINs profundos con RLS
+      const cicloIds = [...new Set(
+        tutores.map(t => t.alumno?.grupo?.ciclo_id).filter(Boolean)
+      )];
+      if (cicloIds.length > 0) {
+        const { data: ciclos } = await sb
+          .from('ciclos').select('id, nombre').in('id', cicloIds);
+        const mapaCiclo = Object.fromEntries((ciclos||[]).map(c => [c.id, c]));
+        tutores.forEach(t => {
+          if (t.alumno?.grupo?.ciclo_id) {
+            t.alumno.grupo.ciclo = mapaCiclo[t.alumno.grupo.ciclo_id] || null;
+          }
+        });
+      }
+      return tutores;
     },
     async vincular({ padre_id, alumno_id, relacion }) {
       const { data, error } = await sb.from('tutores')
