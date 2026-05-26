@@ -162,10 +162,11 @@ const DB = window.DB = {
       if (error) throw error;
       return data || [];
     },
-    async crear({ materia_id, nombre, tipo, fecha, valor_max, orden }) {
+    async crear({ materia_id, nombre, tipo, fecha, valor_max, orden, criterio_id }) {
+      const row = { materia_id, nombre, tipo, fecha, valor_max, orden };
+      if (criterio_id) row.criterio_id = criterio_id;
       const { data, error } = await sb.from('actividades')
-        .insert({ materia_id, nombre, tipo, fecha, valor_max, orden })
-        .select().single();
+        .insert(row).select().single();
       if (error) throw error;
       return data;
     },
@@ -611,6 +612,78 @@ const DB = window.DB = {
         alumnos:  [],
         padres:   [],
       };
+    },
+  },
+
+  // --- CRITERIOS DE EVALUACION ----------------------------------------------
+  criterios: {
+    async listar(materiaId) {
+      const { data, error } = await sb
+        .from('criterios_evaluacion')
+        .select('*')
+        .eq('materia_id', materiaId)
+        .order('orden');
+      if (error) throw error;
+      return data || [];
+    },
+    async crear({ materia_id, nombre, porcentaje, orden }) {
+      const { data, error } = await sb
+        .from('criterios_evaluacion')
+        .insert({ materia_id, nombre, porcentaje, orden })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    async actualizar(id, { nombre, porcentaje, orden }) {
+      const { data, error } = await sb
+        .from('criterios_evaluacion')
+        .update({ nombre, porcentaje, orden })
+        .eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async eliminar(id) {
+      const { error } = await sb
+        .from('criterios_evaluacion').delete().eq('id', id);
+      if (error) throw error;
+    },
+    // Verifica si los criterios de una materia suman exactamente 100%
+    sumaPorcentajes(criterios) {
+      return criterios.reduce((s, c) => s + Number(c.porcentaje), 0);
+    },
+    // Calcula promedio ponderado dado criterios, actividades y calificaciones
+    // califs = { [actividad_id]: valor }
+    // actividades = [{ id, criterio_id, ... }]
+    calcPonderado(criterios, actividades, califs) {
+      if (!criterios.length) return null;
+      const suma = criterios.reduce((s, c) => s + Number(c.porcentaje), 0);
+      if (Math.abs(suma - 100) > 0.01) return null; // no suman 100%
+
+      let total = 0;
+      let pesoCubierto = 0;
+
+      for (const criterio of criterios) {
+        const actsDelCriterio = actividades.filter(a => a.criterio_id === criterio.id);
+        if (!actsDelCriterio.length) continue;
+
+        const vals = actsDelCriterio
+          .map(a => califs[a.id])
+          .filter(v => v !== undefined && v !== null)
+          .map(Number);
+
+        if (!vals.length) continue;
+
+        const promCriterio = vals.reduce((s, v) => s + v, 0) / vals.length;
+        total += promCriterio * (Number(criterio.porcentaje) / 100);
+        pesoCubierto += Number(criterio.porcentaje);
+      }
+
+      if (pesoCubierto === 0) return null;
+      // Si no todos los criterios tienen calificaciones, normalizar
+      if (pesoCubierto < 100) {
+        total = (total / pesoCubierto) * 100;
+      }
+      return Math.round(total * 100) / 100;
     },
   },
 
