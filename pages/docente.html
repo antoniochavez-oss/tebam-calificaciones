@@ -568,17 +568,23 @@ async function loadMaterias(){
   document.getElementById('materiasSub').textContent=CUR.ciclo.nombre;
   document.getElementById('materiasGrid').innerHTML=materias.length?materias.map(m=>{
     const dueno = esDueno(m);
+    const clickAttr = dueno
+      ? `onclick="abrirMateria('${m.id}','${UI.esc(m.nombre)}','${m.docente_asignado_id||''}')"` 
+      : `onclick="UI.toast('Esta materia pertenece a otro docente — solo puedes verla en modo consulta','warn')" style="cursor:not-allowed"`;
     return `
-    <div class="card${dueno?'':' card-readonly'}" onclick="abrirMateria('${m.id}','${UI.esc(m.nombre)}','${m.docente_asignado_id||''}')">
+    <div class="card${dueno?'':' card-readonly'}" ${clickAttr}>
       <div class="card-top">
         <span class="badge ${m.estado==='ACTIVA'?'badge-y':'badge-dim'}">${m.estado}</span>
         ${dueno
           ? `<button class="card-del" onclick="event.stopPropagation();eliminarMateria('${m.id}')">🗑</button>`
-          : `<span style="font-size:10px;color:var(--gr);padding:2px 6px;background:rgba(0,0,0,.2);border-radius:4px">VISTA</span>`}
+          : `<span style="font-size:10px;color:var(--gr);padding:2px 6px;background:rgba(0,0,0,.2);border-radius:4px">👁 VISTA</span>`}
       </div>
       <div class="card-name">${UI.esc(m.nombre)}</div>
       <div class="card-sub">${CUR.grupo.nombre} · ${CUR.ciclo.nombre}</div>
-      <div class="card-stats"><span>${m.actividades?.[0]?.count??0} Actividades</span></div>
+      <div class="card-stats">
+        <span>${m.actividades?.[0]?.count??0} Actividades</span>
+        ${!dueno ? `<span style="color:var(--gr);font-size:10px">Solo lectura</span>` : ''}
+      </div>
     </div>`;
   }).join('')
     :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">📚</div><p>Sin asignaturas</p></div>`;
@@ -703,6 +709,7 @@ function renderGradebook(){
     <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th>${thActs}<th>${hdrLabel}</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 async function saveGrade(alumnoId,actId,val){
+  if(!esDueno(CUR.materia)){UI.toast('Sin permiso — materia de otro docente','err');return;}
   const valor=val===''?null:Number(val);
   const data=await DB.calificaciones.guardar({alumno_id:alumnoId,actividad_id:actId,valor});
   if(!cache.califs[alumnoId])cache.califs[alumnoId]={};
