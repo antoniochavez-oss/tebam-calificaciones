@@ -246,19 +246,7 @@
 
 <div class="overlay" id="mActividad"><div class="modal">
   <div class="modal-title">Nueva Actividad</div>
-  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="acNom" placeholder="ej. Examen Parcial 1"/></div>
-  <div class="form-row">
-    <div class="field"><label class="lbl">Tipo</label>
-      <select class="sel" id="acTipo">
-        <option value="tarea">📝 Tarea</option>
-        <option value="examen">📖 Examen</option>
-        <option value="participacion">🗣️ Participación</option>
-        <option value="proyecto">🔬 Proyecto</option>
-        <option value="rubrica">📊 Rúbrica</option>
-      </select>
-    </div>
-    <div class="field"><label class="lbl">Valor (pts)</label><input class="inp" type="number" id="acValor" value="10" min="1"/></div>
-  </div>
+  <div class="field"><label class="lbl">Nombre</label><input class="inp" id="acNom" placeholder="ej. Examen Parcial 1, Tarea 3…"/></div>
   <div class="field"><label class="lbl">Fecha de entrega</label><input class="inp" type="date" id="acFecha"/></div>
   <div class="field">
     <label class="lbl">Criterio de evaluación <span style="color:var(--gr);font-weight:400">(opcional)</span></label>
@@ -566,7 +554,7 @@ function renderGradebook(){
   const usarPonderado = critActivos && critCompletos;
   const thActs=actividades.map(a=>{
     const c = crit.find(x=>x.id===a.criterio_id);
-    return `<th title="${c?c.nombre+' '+c.porcentaje+'%':''}">${UI.tipoIcon(a.tipo)} ${UI.esc(a.nombre)}${c?`<br><span style="font-size:9px;color:var(--gr);font-weight:400">${c.nombre}</span>`:''}`;
+    return `<th title="${c?c.nombre+' '+c.porcentaje+'%':''}">${UI.esc(a.nombre)}${c?`<br><span style="font-size:9px;color:var(--gr);font-weight:400">${c.nombre}</span>`:''}`;
   }).join('');
   const rows=alumnos.map((al,i)=>{
     const grades=califs[al.id]||{};
@@ -614,13 +602,13 @@ async function crearActividad(){
   if(!nombre){UI.toast('Escribe el nombre','err');return;}
   const criterioId=document.getElementById('acCriterio').value||null;
   const data=await DB.actividades.crear({
-    materia_id:CUR.materia.id,
+    materia_id: CUR.materia.id,
     nombre,
-    tipo:document.getElementById('acTipo').value,
-    fecha:document.getElementById('acFecha').value||null,
-    valor_max:parseFloat(document.getElementById('acValor').value)||10,
-    orden:cache.actividades.length+1,
-    criterio_id:criterioId||undefined,
+    tipo:       'actividad',
+    fecha:      document.getElementById('acFecha').value||null,
+    valor_max:  10,
+    orden:      cache.actividades.length+1,
+    criterio_id: criterioId||undefined,
   });
   cache.actividades.push(data);
   UI.closeModal('mActividad');document.getElementById('acNom').value='';
