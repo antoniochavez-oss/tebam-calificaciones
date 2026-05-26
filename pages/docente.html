@@ -558,7 +558,7 @@ async function eliminarGrupo(id){
 
 /* ══ MATERIAS ══ */
 const esSupervisor = () => ['admin','coordinador'].includes(Auth.perfil?.rol);
-const esDueno = (m) => esSupervisor() || m.docente_asignado_id === Auth.user.id || !m.docente_asignado_id;
+const esDueno = (m) => esSupervisor() || m.docente_asignado_id === Auth.user.id;
 
 async function loadMaterias(){
   UI.showLoader('materiasLoader',true);
