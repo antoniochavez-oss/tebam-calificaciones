@@ -96,11 +96,14 @@
           <div style="font-size:20px;font-weight:700" id="detTitle">—</div>
           <div style="font-size:12px;color:var(--gr)" id="detSub">—</div>
         </div>
-        <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap">
+        <div style="margin-left:auto;display:flex;gap:7px;flex-wrap:wrap" id="detBtns">
           <button class="btn btn-g btn-sm" onclick="UI.openModal('mAlumno')">+ Alumno</button>
           <button class="btn btn-g btn-sm" onclick="UI.openModal('mCSV')">📋 CSV</button>
           <button class="btn btn-g btn-sm" onclick="UI.openModal('mActividad')">+ Actividad</button>
           <button class="btn btn-g btn-sm" onclick="UI.openModal('mComunicado')">📢 Comunicado</button>
+        </div>
+        <div id="detReadonlyBadge" style="display:none;margin-left:auto;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:6px 14px;font-size:12px;color:var(--gr)">
+          👁 Modo vista — materia de otro docente
         </div>
       </div>
       <div class="tabs">
@@ -554,28 +557,54 @@ async function eliminarGrupo(id){
 }
 
 /* ══ MATERIAS ══ */
+const esSupervisor = () => ['admin','coordinador'].includes(Auth.perfil?.rol);
+const esDueno = (m) => esSupervisor() || m.docente_asignado_id === Auth.user.id || !m.docente_asignado_id;
+
 async function loadMaterias(){
   UI.showLoader('materiasLoader',true);
   const materias=await DB.materias.listarPorGrupo(CUR.grupo.id);
   UI.showLoader('materiasLoader',false);
   document.getElementById('materiasTitle').textContent=`Asignaturas — ${CUR.grupo.nombre}`;
   document.getElementById('materiasSub').textContent=CUR.ciclo.nombre;
-  document.getElementById('materiasGrid').innerHTML=materias.length?materias.map(m=>`
-    <div class="card" onclick="abrirMateria('${m.id}','${UI.esc(m.nombre)}')">
+  document.getElementById('materiasGrid').innerHTML=materias.length?materias.map(m=>{
+    const dueno = esDueno(m);
+    return `
+    <div class="card${dueno?'':' card-readonly'}" onclick="abrirMateria('${m.id}','${UI.esc(m.nombre)}','${m.docente_asignado_id||''}')">
       <div class="card-top">
         <span class="badge ${m.estado==='ACTIVA'?'badge-y':'badge-dim'}">${m.estado}</span>
-        <button class="card-del" onclick="event.stopPropagation();eliminarMateria('${m.id}')">🗑</button>
+        ${dueno
+          ? `<button class="card-del" onclick="event.stopPropagation();eliminarMateria('${m.id}')">🗑</button>`
+          : `<span style="font-size:10px;color:var(--gr);padding:2px 6px;background:rgba(0,0,0,.2);border-radius:4px">VISTA</span>`}
       </div>
       <div class="card-name">${UI.esc(m.nombre)}</div>
       <div class="card-sub">${CUR.grupo.nombre} · ${CUR.ciclo.nombre}</div>
       <div class="card-stats"><span>${m.actividades?.[0]?.count??0} Actividades</span></div>
-    </div>`).join('')
+    </div>`;
+  }).join('')
     :`<div class="empty" style="grid-column:1/-1"><div class="empty-ico">📚</div><p>Sin asignaturas</p></div>`;
 }
-async function abrirMateria(id,nombre){
-  CUR.materia={id,nombre};
+async function abrirMateria(id, nombre, docenteAsignadoId=''){
+  CUR.materia={id, nombre, docente_asignado_id: docenteAsignadoId || null};
+  const readonly = !esDueno(CUR.materia);
   document.getElementById('detTitle').textContent=nombre;
   document.getElementById('detSub').textContent=`${CUR.grupo.nombre} · ${CUR.ciclo.nombre}`;
+
+  // Mostrar/ocultar botones según modo
+  document.getElementById('detBtns').style.display         = readonly ? 'none' : 'flex';
+  document.getElementById('detReadonlyBadge').style.display = readonly ? 'flex' : 'none';
+
+  // En modo readonly: ocultar tabs de escritura
+  const tabsReadonly = ['criterios','diario'];
+  const tabsEdicion  = ['acts','asis'];
+  document.querySelectorAll('.tab').forEach(t => {
+    const tab = t.dataset.tab;
+    if (readonly && (tabsEdicion.includes(tab) || tabsReadonly.includes(tab))) {
+      t.style.display = 'none';
+    } else {
+      t.style.display = '';
+    }
+  });
+
   UI.setBreadcrumb([
     {label:'Ciclos',action:"navTo('ciclos')"},
     {label:CUR.ciclo.nombre,action:"navTo('grupos')"},
