@@ -565,7 +565,7 @@ function renderGradebook(){
     const avg = usarPonderado
       ? DB.criterios.calcPonderado(crit, actividades, Object.fromEntries(Object.entries(grades).map(([k,v])=>[k,v?.valor])))
       : UI.calcAvg(grades,actividades);
-    return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(al.nombre)}</td>${cells}<td class="avg ${UI.avgClass(avg)}">${avg!==null?avg.toFixed(1):'—'}</td><td><button class="btn btn-d btn-sm" onclick="eliminarAlumno('${al.id}')">✕</button></td></tr>`;
+    return `<tr><td class="num">${i+1}</td><td style="font-weight:500">${UI.esc(al.nombre)}</td>${cells}<td class="avg ${UI.avgClass(avg)}">${avg!==null?avg.toFixed(1):'—'}</td><td>${Auth.perfil?.rol==='admin'?`<button class="btn btn-d btn-sm" onclick="eliminarAlumno('${al.id}')">✕</button>`:''}</td></tr>`;
   }).join('');
   const hdrLabel = usarPonderado ? 'Prom. ponderado' : 'Prom.';
   document.getElementById('tab-cal').innerHTML=`
