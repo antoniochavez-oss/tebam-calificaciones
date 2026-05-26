@@ -598,7 +598,40 @@ const DB = window.DB = {
     },
   },
 
-  // ─── PERFIL ────────────────────────────────────────────────
+  // --- SESIONES (Diario de clase) -------------------------------------------
+  sesiones: {
+    async listar(materiaId) {
+      const { data, error } = await sb
+        .from('sesiones')
+        .select('*, docente:perfiles!sesiones_docente_id_fkey(nombre)')
+        .eq('materia_id', materiaId)
+        .order('fecha', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    async crear({ materia_id, fecha, tema, contenido, observaciones }) {
+      const { data, error } = await sb
+        .from('sesiones')
+        .insert({ materia_id, docente_id: Auth.user.id, fecha, tema, contenido, observaciones })
+        .select().single();
+      if (error) throw error;
+      return data;
+    },
+    async actualizar(id, { fecha, tema, contenido, observaciones }) {
+      const { data, error } = await sb
+        .from('sesiones')
+        .update({ fecha, tema, contenido, observaciones })
+        .eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async eliminar(id) {
+      const { error } = await sb.from('sesiones').delete().eq('id', id);
+      if (error) throw error;
+    },
+  },
+
+  // --- PERFIL ----------------------------------------------------------------
   perfiles: {
     async listarDocentes() {
       const { data, error } = await sb.from('perfiles')

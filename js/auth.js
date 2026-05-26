@@ -51,9 +51,17 @@ const Auth = window.Auth = {
     this.perfil = perfil;
 
     // Verificar rol si se requiere
-    if (rolRequerido && perfil?.rol !== rolRequerido && perfil?.rol !== 'admin') {
-      redirectByRol(perfil?.rol);
-      return null;
+    // admin y coordinador tienen acceso expandido
+    if (rolRequerido) {
+      const rolesPermitidos = {
+        'admin':   ['admin', 'coordinador'],
+        'docente': ['docente', 'admin', 'coordinador'],
+      };
+      const permitidos = rolesPermitidos[rolRequerido] || [rolRequerido, 'admin'];
+      if (!permitidos.includes(perfil?.rol)) {
+        redirectByRol(perfil?.rol);
+        return null;
+      }
     }
 
     // Hidratar UI con datos del usuario
@@ -74,7 +82,11 @@ const Auth = window.Auth = {
     const nombre   = p.nombre || this.user.email.split('@')[0];
     const iniciales = nombre.split(/\s+/).slice(0, 2)
       .map(s => s[0]?.toUpperCase() || '').join('');
-    const rolLabel = { docente:'Docente', alumno:'Alumno', padre:'Padre de familia', admin:'Administrador' }[p.rol] || p.rol;
+    const rolLabel = {
+      docente:'Docente', alumno:'Alumno',
+      padre:'Padre de familia', admin:'Administrador',
+      coordinador:'Coordinador'
+    }[p.rol] || p.rol;
 
     document.querySelectorAll('.user-name').forEach(el => el.textContent = nombre);
     document.querySelectorAll('.user-rol').forEach(el => el.textContent = `${rolLabel} · TEBAM`);

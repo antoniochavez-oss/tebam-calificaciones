@@ -18,6 +18,13 @@ const URLS = {
 
 // Redirige al portal correcto según el rol
 function redirectByRol(rol) {
-  const dest = URLS[rol] || URLS.docente;
+  const mapa = {
+    admin:        URLS.docente,
+    coordinador:  URLS.docente,
+    docente:      URLS.docente,
+    alumno:       URLS.alumno,
+    padre:        URLS.padre,
+  };
+  const dest = mapa[rol] || URLS.login;
   if (location.href !== dest) location.href = dest;
 }
