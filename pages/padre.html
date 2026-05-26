@@ -138,9 +138,12 @@
 
     <!-- BOLETA DETALLE -->
     <div class="view" id="view-boleta">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-        <button class="btn btn-g btn-sm" onclick="navTo('materias')">← Volver</button>
-        <div style="font-size:20px;font-weight:700" id="boletaTitulo">—</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <button class="btn btn-g btn-sm" onclick="navTo('materias')">← Volver</button>
+          <div style="font-size:20px;font-weight:700" id="boletaTitulo">—</div>
+        </div>
+        <button class="btn btn-y btn-sm" onclick="imprimirBoletaPadre()">📋 Descargar boleta</button>
       </div>
       <div class="boleta-header" id="boletaResumen"></div>
       <div class="tabs">
@@ -833,6 +836,89 @@ function renderCalendario(registros) {
         :`<div class="cal-day vacio"></div>`).join('')}</div>`).join('')}
     </div>
   </div>`;
+}
+
+async function imprimirBoletaPadre() {
+  if (!hijoActual || !CUR_MATERIA_P) return;
+  UI.toast('Generando boleta…');
+
+  const [{ data: actividades }, { data: califs }, { data: asistencia }, { data: sesiones }] = await Promise.all([
+    sb.from('actividades').select('*').eq('materia_id', CUR_MATERIA_P.id).order('orden'),
+    sb.from('calificaciones').select('*').eq('alumno_id', hijoActual.id),
+    sb.from('asistencia').select('*').eq('alumno_id', hijoActual.id).eq('materia_id', CUR_MATERIA_P.id).order('fecha'),
+    sb.from('sesiones').select('fecha, tema, contenido').eq('materia_id', CUR_MATERIA_P.id).order('fecha', { ascending: false }).limit(10),
+  ]);
+
+  const califMap = {};
+  (califs||[]).forEach(c => { califMap[c.actividad_id] = c.valor; });
+  const acts    = actividades||[];
+  const vals    = acts.map(a=>califMap[a.id]).filter(v=>v!==null&&v!==undefined).map(Number);
+  const avg     = vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length):null;
+  const faltas  = (asistencia||[]).filter(a=>a.estado==='A').length;
+  const pres    = (asistencia||[]).filter(a=>a.estado==='P').length;
+  const total   = faltas+pres;
+  const pct     = total?((pres/total)*100).toFixed(0)+'%':'—';
+  const grupo   = hijoActual.grupo?.nombre||'—';
+  const ciclo   = hijoActual.grupo?.ciclo?.nombre||'—';
+
+  const estilos = `
+    body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:24px}
+    .header{border-bottom:2px solid #2e3618;padding-bottom:10px;margin-bottom:16px;display:flex;justify-content:space-between}
+    .school{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.06em}
+    .title{font-size:16px;font-weight:700;color:#1a2010}
+    .alumno{font-size:14px;font-weight:700;margin:6px 0 2px}
+    .meta{font-size:11px;color:#666}
+    .prom-box{display:inline-block;padding:10px 20px;border-radius:8px;font-size:24px;font-weight:700;margin:10px 0;border:2px solid #2e3618;color:#2e3618}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
+    th{background:#2e3618;color:#f1e640;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase}
+    td{padding:5px 8px;border-bottom:1px solid #eee}
+    tr:nth-child(even) td{background:#f9fafb}
+    .hi{color:#16a34a;font-weight:700} .md{color:#ca8a04;font-weight:700} .lo{color:#dc2626;font-weight:700}
+    .sec-title{font-size:13px;font-weight:700;margin:14px 0 8px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}
+    .sesion{margin-bottom:8px;padding:8px;background:#f9fafb;border-left:3px solid #2e3618;border-radius:0 6px 6px 0}
+    .ses-fecha{font-size:9px;color:#888;font-weight:700;text-transform:uppercase}
+    .ses-tema{font-size:12px;font-weight:600;color:#1a2010}
+    .footer{margin-top:16px;font-size:9px;color:#999;text-align:right;border-top:1px solid #eee;padding-top:8px}
+    @media print{body{margin:0}}`;
+
+  const actRows = acts.map(a => {
+    const v = califMap[a.id];
+    const n = v!==null&&v!==undefined?Number(v):null;
+    const cls = n===null?'':(n>=8?'hi':n>=6?'md':'lo');
+    return `<tr><td>${a.nombre}</td><td>${a.tipo||'—'}</td><td class="${cls}">${n!==null?n.toFixed(1):'—'}</td></tr>`;
+  }).join('');
+
+  const avgCls = avg===null?'':(avg>=8?'hi':avg>=6?'md':'lo');
+
+  const sesionRows = (sesiones||[]).slice(0,8).map(s => {
+    const [y,m,d2] = (s.fecha||'').split('-');
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const fmtF = s.fecha?`${d2} ${meses[parseInt(m)-1]} ${y}`:'—';
+    return `<div class="sesion"><div class="ses-fecha">${fmtF}</div><div class="ses-tema">${s.tema||''}</div>${s.contenido?`<div style="font-size:11px;color:#555;margin-top:3px">${s.contenido}</div>`:''}</div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Boleta ${hijoActual.nombre}</title><style>${estilos}</style></head><body>
+    <div class="header">
+      <div><div class="school">Telebachillerato de Michoacán · TEBAM Digital</div>
+        <div class="title">Boleta de Calificaciones</div>
+        <div class="alumno">${hijoActual.nombre}</div>
+        <div class="meta">Materia: <b>${CUR_MATERIA_P.nombre}</b> · Grupo: <b>${grupo}</b> · Ciclo: <b>${ciclo}</b></div>
+      </div>
+      <div style="text-align:right">
+        <div class="prom-box ${avgCls}">${avg!==null?avg.toFixed(1):'—'}</div>
+        <div style="font-size:10px;color:#888">Promedio final</div>
+      </div>
+    </div>
+    <div class="sec-title">Actividades y calificaciones</div>
+    <table><thead><tr><th>Actividad</th><th>Tipo</th><th>Calificación</th></tr></thead><tbody>${actRows||'<tr><td colspan="3" style="text-align:center;color:#999">Sin actividades registradas</td></tr>'}</tbody></table>
+    <div>Asistencia: <b>${pres}</b> presencias · <b>${faltas}</b> faltas · <b>${pct}</b> de asistencia</div>
+    ${sesionRows?`<div class="sec-title">Últimas sesiones del diario</div>${sesionRows}`:''}
+    <div class="footer">TEBAM Digital · Generado: ${new Date().toLocaleString('es-MX')}</div>
+    </body></html>`;
+
+  const win = window.open('','_blank');
+  win.document.write(html); win.document.close();
+  setTimeout(()=>win.print(), 600);
 }
 </script>
 </body>

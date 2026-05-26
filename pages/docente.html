@@ -632,11 +632,130 @@ function renderReporte(){
       <div class="stat-box"><div class="stat-val">${actividades.length}</div><div class="stat-lbl">Actividades</div></div>
       <div class="stat-box"><div class="stat-val" style="color:var(--err)">${totalFaltas}</div><div class="stat-lbl">Faltas totales</div></div>
     </div>
-    <div style="font-size:17px;font-weight:700;margin-bottom:14px">Concentrado</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:17px;font-weight:700">Concentrado</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g btn-sm" onclick="imprimirReporteDoc()">📄 Reporte PDF</button>
+        <button class="btn btn-y btn-sm" onclick="imprimirBoletasDoc()">📋 Boletas PDF</button>
+      </div>
+    </div>
     <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Alumno</th><th>Promedio</th><th>Faltas</th><th>Situación</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-/* ══ COMUNICADOS ══ */
+function imprimirReporteDoc() {
+  const { alumnos, actividades, asistencia } = cache;
+  const avgs = alumnos.map(al => {
+    const vals = actividades.map(a => cache.califs[al.id]?.[a.id]).filter(v => v !== undefined && v !== null).map(Number);
+    const avg  = vals.length ? (vals.reduce((s,v)=>s+v,0)/vals.length) : null;
+    let faltas = 0;
+    Object.values(asistencia).forEach(d => { if(d[al.id]?.estado==='A') faltas++; });
+    const sit = avg===null?'—':avg>=8?'✅ Bueno':avg>=6?'⚠️ Regular':'❌ En riesgo';
+    return { nombre: al.nombre, numero: al.numero_lista, avg, faltas, sit };
+  });
+
+  const estilos = `
+    body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:24px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;border-bottom:2px solid #2e3618;padding-bottom:12px}
+    .school{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.06em}
+    .title{font-size:18px;font-weight:700;color:#1a2010;margin:3px 0}
+    .sub{font-size:11px;color:#666}
+    .stats{display:flex;gap:14px;margin-bottom:18px}
+    .stat{background:#f5f5f0;border-radius:8px;padding:8px 14px;text-align:center}
+    .stat-v{font-size:20px;font-weight:700;color:#2e3618}
+    .stat-l{font-size:10px;color:#888;text-transform:uppercase}
+    table{width:100%;border-collapse:collapse;font-size:11px}
+    th{background:#2e3618;color:#f1e640;padding:8px 10px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+    td{padding:7px 10px;border-bottom:1px solid #e5e7eb}
+    tr:nth-child(even) td{background:#f9fafb}
+    .hi{color:#16a34a;font-weight:700} .md{color:#ca8a04;font-weight:700} .lo{color:#dc2626;font-weight:700}
+    .footer{margin-top:16px;font-size:10px;color:#999;text-align:right;border-top:1px solid #e5e7eb;padding-top:8px}
+    @media print{body{margin:0}}`;
+
+  const rows = avgs.map((a,i) => {
+    const cls = a.avg===null?'':(a.avg>=8?'hi':a.avg>=6?'md':'lo');
+    return `<tr><td>${i+1}</td><td style="font-weight:500">${a.nombre}</td>
+      <td class="${cls}">${a.avg!==null?a.avg.toFixed(1):'—'}</td>
+      <td style="color:#dc2626">${a.faltas}</td><td>${a.sit}</td></tr>`;
+  }).join('');
+
+  const aprobados = avgs.filter(a=>a.avg!==null&&a.avg>=6).length;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Reporte</title><style>${estilos}</style></head><body>
+    <div class="header">
+      <div><div class="school">Telebachillerato de Michoacán</div>
+        <div class="title">TEBAM Digital — Reporte de Materia</div>
+        <div class="sub">Materia: <b>${CUR.materia.nombre}</b> · Grupo: <b>${CUR.grupo.nombre}</b> · Ciclo: <b>${CUR.ciclo.nombre}</b></div>
+      </div>
+      <div class="sub" style="text-align:right">Generado: ${new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})}</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-v">${alumnos.length}</div><div class="stat-l">Alumnos</div></div>
+      <div class="stat"><div class="stat-v" style="color:#2e3618">${avgs.filter(a=>a.avg!==null).length?((avgs.filter(a=>a.avg!==null).reduce((s,a)=>s+a.avg,0)/avgs.filter(a=>a.avg!==null).length).toFixed(1)):'—'}</div><div class="stat-l">Promedio</div></div>
+      <div class="stat"><div class="stat-v" style="color:#16a34a">${aprobados}</div><div class="stat-l">Aprobados</div></div>
+      <div class="stat"><div class="stat-v" style="color:#dc2626">${avgs.length-aprobados}</div><div class="stat-l">En riesgo</div></div>
+    </div>
+    <table><thead><tr><th>#</th><th>Alumno</th><th>Promedio</th><th>Faltas</th><th>Situación</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="footer">TEBAM Digital · ${new Date().toLocaleString('es-MX')}</div>
+    </body></html>`;
+
+  const win = window.open('','_blank');
+  win.document.write(html); win.document.close();
+  setTimeout(()=>win.print(), 500);
+}
+
+async function imprimirBoletasDoc() {
+  UI.toast('Generando boletas…');
+  const { alumnos, actividades, asistencia } = cache;
+  const estilos = `
+    body{font-family:Arial,sans-serif;font-size:12px;color:#222;margin:0}
+    .boleta{padding:24px;page-break-after:always;border:1px solid #ddd;margin-bottom:0}
+    .boleta:last-child{page-break-after:auto}
+    .header{border-bottom:2px solid #2e3618;padding-bottom:10px;margin-bottom:14px}
+    .school{font-size:9px;color:#666;text-transform:uppercase;letter-spacing:.06em}
+    .title{font-size:16px;font-weight:700;color:#1a2010}
+    .alumno{font-size:14px;font-weight:700;margin:8px 0 2px}
+    .meta{font-size:11px;color:#666}
+    table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px}
+    th{background:#2e3618;color:#f1e640;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase}
+    td{padding:5px 8px;border-bottom:1px solid #eee}
+    .hi{color:#16a34a;font-weight:700} .md{color:#ca8a04;font-weight:700} .lo{color:#dc2626;font-weight:700}
+    .prom-box{display:inline-block;padding:8px 16px;border-radius:8px;font-size:20px;font-weight:700;margin-top:8px}
+    .footer{font-size:9px;color:#999;margin-top:10px;text-align:right}
+    @media print{.boleta{border:none;padding:16px}}`;
+
+  const boletas = alumnos.map(al => {
+    const actRows = actividades.map(a => {
+      const v = cache.califs[al.id]?.[a.id];
+      const cls = v===null||v===undefined?'':(v>=8?'hi':v>=6?'md':'lo');
+      return `<tr><td>${a.nombre}</td><td>${a.tipo||'—'}</td><td class="${cls}">${v!==null&&v!==undefined?Number(v).toFixed(1):'—'}</td></tr>`;
+    }).join('');
+    const vals = actividades.map(a=>cache.califs[al.id]?.[a.id]).filter(v=>v!==null&&v!==undefined).map(Number);
+    const avg  = vals.length?(vals.reduce((s,v)=>s+v,0)/vals.length):null;
+    const avgCls = avg===null?'':(avg>=8?'hi':avg>=6?'md':'lo');
+    let faltas=0,pres=0;
+    Object.values(asistencia).forEach(d=>{if(d[al.id]?.estado==='A')faltas++;if(d[al.id]?.estado==='P')pres++;});
+    const total=faltas+pres;
+    const pct = total?((pres/total)*100).toFixed(0)+'%':'—';
+    return `<div class="boleta">
+      <div class="header">
+        <div class="school">Telebachillerato de Michoacán · TEBAM Digital</div>
+        <div class="title">Boleta de Calificaciones</div>
+        <div class="alumno">${al.nombre}</div>
+        <div class="meta">Materia: <b>${CUR.materia.nombre}</b> · Grupo: <b>${CUR.grupo.nombre}</b> · Ciclo: <b>${CUR.ciclo.nombre}</b> · Lista: ${al.numero_lista||'—'}</div>
+      </div>
+      <table><thead><tr><th>Actividad</th><th>Tipo</th><th>Calificación</th></tr></thead><tbody>${actRows}</tbody></table>
+      <div>Asistencia: <b>${pres}</b> presencias · <b>${faltas}</b> faltas · <b>${pct}</b></div>
+      <div class="prom-box ${avgCls}">${avg!==null?avg.toFixed(1):'Sin calificaciones'}</div>
+      <div style="font-size:10px;color:#888;margin-top:4px">Promedio final</div>
+      <div class="footer">Generado: ${new Date().toLocaleString('es-MX')}</div>
+    </div>`;
+  }).join('');
+
+  const win = window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Boletas ${CUR.materia.nombre}</title><style>${estilos}</style></head><body>${boletas}</body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(), 600);
+}
 async function crearComunicado(){
   const titulo=document.getElementById('comTitulo').value.trim();
   const contenido=document.getElementById('comContenido').value.trim();
