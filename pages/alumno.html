@@ -119,9 +119,11 @@
       <div class="tabs">
         <div class="tab active" data-tab="califs">Calificaciones</div>
         <div class="tab" data-tab="asistMat">Asistencia</div>
+        <div class="tab" data-tab="diarioAl">Diario</div>
       </div>
       <div id="tab-califs"></div>
       <div id="tab-asistMat" style="display:none"></div>
+      <div id="tab-diarioAl" style="display:none"></div>
     </div>
 
     <!-- ASISTENCIA GENERAL -->
@@ -355,10 +357,40 @@ document.querySelectorAll('#view-boleta .tab').forEach(t =>
 function activateTabAl(tab) {
   CUR_TAB_AL = tab;
   document.querySelectorAll('#view-boleta .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('tab-califs').style.display   = tab === 'califs'   ? 'block' : 'none';
-  document.getElementById('tab-asistMat').style.display = tab === 'asistMat' ? 'block' : 'none';
-  if (tab === 'califs')   renderBoleta();
-  if (tab === 'asistMat') renderAsistMateria();
+  document.getElementById('tab-califs').style.display    = tab === 'califs'    ? 'block' : 'none';
+  document.getElementById('tab-asistMat').style.display  = tab === 'asistMat'  ? 'block' : 'none';
+  document.getElementById('tab-diarioAl').style.display  = tab === 'diarioAl'  ? 'block' : 'none';
+  if (tab === 'califs')    renderBoleta();
+  if (tab === 'asistMat')  renderAsistMateria();
+  if (tab === 'diarioAl')  renderDiarioAl();
+}
+
+async function renderDiarioAl() {
+  const el = document.getElementById('tab-diarioAl');
+  el.innerHTML = '<div style="color:var(--gr);font-size:13px;padding:16px">Cargando...</div>';
+  const { data: sesiones, error } = await sb
+    .from('sesiones')
+    .select('fecha, tema, contenido, observaciones, docente:perfiles!sesiones_docente_id_fkey(nombre)')
+    .eq('materia_id', CUR_MATERIA.id)
+    .order('fecha', { ascending: false });
+  if (error || !sesiones?.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">📓</div><p>Sin sesiones registradas aún.</p></div>';
+    return;
+  }
+  el.innerHTML = sesiones.map(s => `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)">
+      <div style="font-size:11px;color:var(--gr);font-weight:600;letter-spacing:.04em;margin-bottom:4px">${fmtFechaDs(s.fecha)}${s.docente?.nombre ? ' · ' + UI.esc(s.docente.nombre) : ''}</div>
+      <div style="font-size:14px;font-weight:600;color:var(--y);margin-bottom:6px">${UI.esc(s.tema)}</div>
+      ${s.contenido ? `<div style="font-size:13px;color:var(--tx2);line-height:1.55;margin-bottom:5px">${UI.esc(s.contenido)}</div>` : ''}
+      ${s.observaciones ? `<div style="font-size:12px;color:var(--gr);font-style:italic">📌 ${UI.esc(s.observaciones)}</div>` : ''}
+    </div>`).join('');
+}
+
+function fmtFechaDs(iso) {
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d} ${meses[parseInt(m)-1]} ${y}`;
 }
 
 async function renderBoleta() {
