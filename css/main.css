@@ -83,6 +83,8 @@ body {
 /* ── CARDS GRID ──────────────────────────────────────────── */
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
 .card { background: linear-gradient(145deg, var(--gl), var(--gm)); border: 1px solid rgba(255,255,255,.05); border-radius: 14px; padding: 18px; cursor: pointer; transition: .2s; position: relative; overflow: hidden; }
+.card.card-readonly { opacity: .75; border-style: dashed; }
+.card.card-readonly:hover { border-color: rgba(255,255,255,.15); transform: none; box-shadow: none; }
 .card::after { content: ''; position: absolute; top: 0; right: 0; width: 60px; height: 60px; background: radial-gradient(circle at top right, var(--yd), transparent 70%); pointer-events: none; }
 .card:hover { border-color: var(--yg); transform: translateY(-3px); box-shadow: var(--shadow); }
 .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
