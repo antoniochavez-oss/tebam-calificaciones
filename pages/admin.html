@@ -252,6 +252,7 @@
   <div class="field">
     <label class="lbl">Nuevo rol para <span id="mRolNombre">—</span></label>
     <select class="sel" id="mRolSelect">
+      <option value="coordinador">Coordinador</option>
       <option value="docente">Docente</option>
       <option value="alumno">Alumno</option>
       <option value="padre">Padre de familia</option>
@@ -276,8 +277,18 @@ let todosGrupos = [];
 /* ══ INIT ══ */
 (async () => {
   UI.initModals();
+  // Coordinador también puede entrar al panel admin (solo reportes y grupos)
   const perfil = await Auth.init('admin');
   if (!perfil) return;
+
+  // Si es coordinador: ocultar secciones de usuarios y herramientas
+  if (perfil.rol === 'coordinador') {
+    ['nav-usuarios','nav-crear-usuario','nav-doc-autorizados','nav-importar'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+  }
+
   document.getElementById('dashFecha').textContent =
     new Date().toLocaleDateString('es-MX', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   await renderDashboard();

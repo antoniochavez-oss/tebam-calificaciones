@@ -104,14 +104,41 @@
         <div class="tab active" data-tab="cal">Calificaciones</div>
         <div class="tab" data-tab="asis">Asistencia</div>
         <div class="tab" data-tab="acts">Actividades</div>
+        <div class="tab" data-tab="diario">Diario</div>
         <div class="tab" data-tab="rep">Reporte</div>
         <div class="tab" data-tab="com">Comunicados</div>
       </div>
       <div id="tab-cal"></div>
-      <div id="tab-asis" style="display:none"></div>
-      <div id="tab-acts" style="display:none"></div>
-      <div id="tab-rep"  style="display:none"></div>
-      <div id="tab-com"  style="display:none"></div>
+      <div id="tab-asis"   style="display:none"></div>
+      <div id="tab-acts"   style="display:none"></div>
+      <div id="tab-diario" style="display:none">
+        <div class="sec-hdr" style="margin-bottom:14px">
+          <div><div class="sec-title">Diario de sesiones</div><div class="sec-sub">Registro cronológico de clases impartidas</div></div>
+          <button class="btn btn-y btn-sm" id="btnNuevaSesion" onclick="abrirFormSesion()">+ Nueva sesión</button>
+        </div>
+        <div id="formSesion" style="display:none;background:rgba(0,0,0,.2);border-radius:10px;padding:16px;margin-bottom:16px;border:1px solid rgba(255,255,255,.08)">
+          <div style="display:grid;grid-template-columns:160px 1fr;gap:10px;margin-bottom:10px">
+            <div><label class="lbl">Fecha</label><input class="inp" type="date" id="sesionFecha"/></div>
+            <div><label class="lbl">Tema de la sesión</label><input class="inp" type="text" id="sesionTema" placeholder="Ej. Introducción a la trigonometría"/></div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label class="lbl">Contenido / actividades realizadas</label>
+            <textarea class="inp" id="sesionContenido" rows="3" placeholder="Describe lo que se trabajó en clase..." style="resize:vertical;width:100%"></textarea>
+          </div>
+          <div style="margin-bottom:12px">
+            <label class="lbl">Observaciones (opcional)</label>
+            <input class="inp" type="text" id="sesionObs" placeholder="Ej. Grupo participativo, pendiente tarea capítulo 3"/>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-y btn-sm" onclick="guardarSesion()">Guardar sesión</button>
+            <button class="btn btn-g btn-sm" onclick="cancelarFormSesion()">Cancelar</button>
+          </div>
+          <div id="sesionMsg" style="font-size:12px;margin-top:8px;display:none"></div>
+        </div>
+        <div id="diarioLista"></div>
+      </div>
+      <div id="tab-rep"    style="display:none"></div>
+      <div id="tab-com"    style="display:none"></div>
     </div>
 
     <!-- COMUNICADOS vista general -->
@@ -455,12 +482,13 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>acti
 function activateTab(tab){
   CUR_TAB=tab;
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
-  ['cal','asis','acts','rep','com'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===tab?'block':'none';});
+  ['cal','asis','acts','diario','rep','com'].forEach(id=>{document.getElementById('tab-'+id).style.display=id===tab?'block':'none';});
   if(tab==='cal') renderGradebook();
-  if(tab==='asis') renderAsistencia();
-  if(tab==='acts') renderActividades();
-  if(tab==='rep')  renderReporte();
-  if(tab==='com')  renderComunicadosTab();
+  if(tab==='asis')   renderAsistencia();
+  if(tab==='acts')   renderActividades();
+  if(tab==='diario') renderDiario();
+  if(tab==='rep')    renderReporte();
+  if(tab==='com')    renderComunicadosTab();
 }
 
 /* ══ GRADEBOOK ══ */
@@ -722,6 +750,110 @@ function resetCSV(){
   const btn=document.getElementById('csvImportBtn');btn.style.display='none';btn.disabled=false;btn.textContent='⬆ Importar';
   document.getElementById('csvFile').value='';
   UI.closeModal('mCSV');
+}
+
+/* ══ DIARIO DE SESIONES ══ */
+let sesionEditandoId = null;
+const esCoordinador  = () => Auth.perfil?.rol === 'coordinador';
+const puedeEditarSesion = (s) => esCoordinador() || soy_admin() || s.docente_id === Auth.user.id;
+
+async function renderDiario() {
+  const lista = document.getElementById('diarioLista');
+  const esReadOnly = esCoordinador(); // coordinador solo lee, no crea
+  document.getElementById('btnNuevaSesion').style.display =
+    esReadOnly ? 'none' : 'inline-flex';
+
+  lista.innerHTML = '<div style="color:var(--gr);font-size:13px;padding:16px">Cargando...</div>';
+  const sesiones = await DB.sesiones.listar(CUR.materia.id);
+  if (!sesiones.length) {
+    lista.innerHTML = `<div class="empty"><div class="empty-ico">📓</div>
+      <p>${esReadOnly ? 'Sin sesiones registradas aún.' : 'Sin sesiones. ¡Registra la primera clase!'}</p></div>`;
+    return;
+  }
+  lista.innerHTML = sesiones.map(s => `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div>
+          <span style="font-size:11px;color:var(--gr);font-weight:600;letter-spacing:.04em">${fmtFechaSesion(s.fecha)}</span>
+          ${s.docente?.nombre && esCoordinador() ? `<span style="font-size:11px;color:var(--gr);margin-left:8px">· ${UI.esc(s.docente.nombre)}</span>` : ''}
+          <div style="font-size:14px;font-weight:600;color:var(--y);margin-top:3px">${UI.esc(s.tema)}</div>
+        </div>
+        ${!esReadOnly ? `
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-g btn-sm" onclick="editarSesion('${s.id}')">✏️</button>
+          <button class="btn btn-g btn-sm" onclick="eliminarSesion('${s.id}')">🗑</button>
+        </div>` : ''}
+      </div>
+      ${s.contenido ? `<div style="font-size:13px;color:var(--tx2);line-height:1.55;margin-bottom:6px">${UI.esc(s.contenido)}</div>` : ''}
+      ${s.observaciones ? `<div style="font-size:12px;color:var(--gr);font-style:italic">📌 ${UI.esc(s.observaciones)}</div>` : ''}
+    </div>`).join('');
+}
+
+function fmtFechaSesion(iso) {
+  if (!iso) return '';
+  const [y,m,d] = iso.split('-');
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${d} ${meses[parseInt(m)-1]} ${y}`;
+}
+
+function abrirFormSesion(sesion = null) {
+  sesionEditandoId = sesion?.id || null;
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('sesionFecha').value    = sesion?.fecha || hoy;
+  document.getElementById('sesionTema').value     = sesion?.tema || '';
+  document.getElementById('sesionContenido').value = sesion?.contenido || '';
+  document.getElementById('sesionObs').value      = sesion?.observaciones || '';
+  document.getElementById('sesionMsg').style.display = 'none';
+  document.getElementById('formSesion').style.display = 'block';
+  document.getElementById('sesionTema').focus();
+}
+
+function cancelarFormSesion() {
+  sesionEditandoId = null;
+  document.getElementById('formSesion').style.display = 'none';
+}
+
+async function guardarSesion() {
+  const tema = document.getElementById('sesionTema').value.trim();
+  const msg  = document.getElementById('sesionMsg');
+  if (!tema) {
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = 'El tema es obligatorio.'; return;
+  }
+  const payload = {
+    materia_id:    CUR.materia.id,
+    fecha:         document.getElementById('sesionFecha').value,
+    tema,
+    contenido:     document.getElementById('sesionContenido').value.trim() || null,
+    observaciones: document.getElementById('sesionObs').value.trim() || null,
+  };
+  try {
+    if (sesionEditandoId) {
+      await DB.sesiones.actualizar(sesionEditandoId, payload);
+      UI.toast('✓ Sesión actualizada');
+    } else {
+      await DB.sesiones.crear(payload);
+      UI.toast('✓ Sesión registrada');
+    }
+    cancelarFormSesion();
+    await renderDiario();
+  } catch(e) {
+    msg.style.display = 'block'; msg.style.color = 'var(--err)';
+    msg.textContent = 'Error: ' + e.message;
+  }
+}
+
+async function editarSesion(id) {
+  const sesiones = await DB.sesiones.listar(CUR.materia.id);
+  const s = sesiones.find(x => x.id === id);
+  if (s) abrirFormSesion(s);
+}
+
+async function eliminarSesion(id) {
+  if (!confirm('¿Eliminar esta sesión del diario?')) return;
+  await DB.sesiones.eliminar(id);
+  UI.toast('Sesión eliminada');
+  await renderDiario();
 }
 </script>
 </body>
