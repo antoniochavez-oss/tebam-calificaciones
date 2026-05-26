@@ -277,6 +277,16 @@
 </div>
 </div>
 
+<!-- MODAL: Gestionar grupo (materias y docentes) -->
+<div class="overlay" id="mGrupoAdmin"><div class="modal" style="max-width:560px;max-height:80vh;overflow-y:auto">
+  <div class="modal-title">🏫 <span id="mGrupoTitulo">Grupo</span></div>
+  <div style="font-size:12px;color:var(--gr);margin-bottom:14px">Asigna un docente a cada materia del grupo</div>
+  <div id="mGrupoLista"></div>
+  <div class="modal-acts" style="margin-top:16px">
+    <button class="btn btn-g" onclick="UI.closeModal('mGrupoAdmin')">Cerrar</button>
+  </div>
+</div></div>
+
 <!-- MODAL: Nuevo docente autorizado -->
 <div class="overlay" id="mDocAut"><div class="modal">
   <div class="modal-title">Agregar docente autorizado</div>
@@ -515,21 +525,79 @@ async function renderGruposAdmin() {
         <span class="badge ${c.activo?'badge-y':'badge-dim'}">${c.activo?'ACTIVO':'CERRADO'}</span>
       </div>
       ${(c.grupos||[]).length ? c.grupos.map(g => `
-        <div class="grupo-admin-card">
+        <div class="grupo-admin-card" style="cursor:pointer" onclick="abrirGrupoAdmin('${g.id}','${UI.esc(g.nombre)}','${UI.esc(c.nombre)}')">
           <div class="grupo-admin-top">
             <div>
               <div style="font-size:15px;font-weight:700">${UI.esc(g.nombre)}</div>
               <div style="font-size:12px;color:var(--gr);margin-top:2px">${g.turno||'—'} · ${g.descripcion||'Sin descripción'}</div>
             </div>
-            <button class="btn btn-g btn-sm" onclick="navTo('reportes')">📄 Reporte PDF</button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-y btn-sm" onclick="event.stopPropagation();abrirGrupoAdmin('${g.id}','${UI.esc(g.nombre)}','${UI.esc(c.nombre)}')">🎓 Gestionar</button>
+              <button class="btn btn-g btn-sm" onclick="event.stopPropagation();navTo('reportes')">📄 Reporte</button>
+            </div>
           </div>
           <div class="grupo-admin-stats">
             <span>👥 ${g.alumnos?.[0]?.count??0} Alumnos</span>
             <span>📚 ${g.materias?.[0]?.count??0} Asignaturas</span>
+            <span style="color:var(--y);font-size:11px">← Clic para gestionar materias y docentes</span>
           </div>
         </div>`).join('')
       : `<div style="font-size:13px;color:var(--gr);padding:10px">Sin grupos en este ciclo</div>`}
     </div>`).join('');
+}
+
+async function abrirGrupoAdmin(grupoId, grupoNombre, cicloNombre) {
+  // Cargar materias del grupo con docente asignado
+  const { data: materias } = await sb.from('materias')
+    .select('*, docente:perfiles!materias_docente_asignado_id_fkey(id,nombre)')
+    .eq('grupo_id', grupoId)
+    .order('nombre');
+
+  // Cargar lista de docentes disponibles
+  const { data: docentes } = await sb.from('perfiles')
+    .select('id, nombre')
+    .in('rol', ['docente','admin','coordinador'])
+    .order('nombre');
+
+  const mats = materias || [];
+  const docs = docentes || [];
+
+  document.getElementById('mGrupoTitulo').textContent = `${grupoNombre} · ${cicloNombre}`;
+  document.getElementById('mGrupoLista').innerHTML = mats.length
+    ? mats.map(m => `
+      <div style="padding:12px 0;border-bottom:1px solid rgba(255,255,255,.08)">
+        <div style="font-size:13px;font-weight:600;color:var(--tx1);margin-bottom:8px">${UI.esc(m.nombre)}</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <select class="sel" id="doc-${m.id}" style="flex:1;font-size:12px;padding:7px 10px">
+            <option value="">— Sin docente asignado —</option>
+            ${docs.map(d=>`<option value="${d.id}" ${m.docente_asignado_id===d.id?'selected':''}>${UI.esc(d.nombre)}</option>`).join('')}
+          </select>
+          <button class="btn btn-y btn-sm" onclick="asignarDocente('${m.id}')">Asignar</button>
+        </div>
+        <div style="font-size:11px;color:var(--gr);margin-top:4px">
+          ${m.docente ? `✓ Actualmente: ${UI.esc(m.docente.nombre)}` : 'Sin docente asignado'}
+        </div>
+      </div>`).join('')
+    : '<div style="color:var(--gr);font-size:13px;padding:16px">Sin materias en este grupo. Créalas desde el Portal Docente.</div>';
+
+  UI.openModal('mGrupoAdmin');
+}
+
+async function asignarDocente(materiaId) {
+  const sel = document.getElementById(`doc-${materiaId}`);
+  const docenteId = sel.value || null;
+  const { error } = await sb.from('materias')
+    .update({ docente_asignado_id: docenteId })
+    .eq('id', materiaId);
+  if (error) { UI.toast('Error: ' + error.message, 'err'); return; }
+  UI.toast(docenteId ? '✓ Docente asignado' : 'Docente removido');
+  // Actualizar el label de confirmación
+  const info = sel.options[sel.selectedIndex]?.text || 'Sin docente';
+  const parent = sel.closest('div[style*="padding:12px"]');
+  if (parent) {
+    const hint = parent.querySelector('div[style*="font-size:11px"]');
+    if (hint) hint.textContent = docenteId ? `✓ Actualmente: ${info}` : 'Sin docente asignado';
+  }
 }
 
 /* ══ REPORTES PDF ══ */
