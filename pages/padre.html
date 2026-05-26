@@ -92,6 +92,8 @@
     <div class="nav-item"        id="nav-materias"     onclick="navTo('materias')">    <span class="ico">📚</span> Materias</div>
     <div class="nav-item"        id="nav-asistencia"   onclick="navTo('asistencia')">  <span class="ico">📅</span> Asistencia</div>
     <div class="nav-item"        id="nav-alertas"      onclick="navTo('alertas')">     <span class="ico">🔔</span> Alertas <span class="nb" id="nb-alertas" style="display:none">0</span></div>
+    <div class="nav-item"        id="nav-tutorias-p"   onclick="navTo('tutorias-p')">  <span class="ico">📅</span> Tutorías <span class="nb" id="nb-tutorias" style="display:none">0</span></div>
+    <div class="nav-item"        id="nav-disciplina-p" onclick="navTo('disciplina-p')"><span class="ico">⚠️</span> Disciplina <span class="nb" id="nb-disciplina" style="display:none">0</span></div>
     <div class="nav-item"        id="nav-comunicados"  onclick="navTo('comunicados')"> <span class="ico">📢</span> Comunicados</div>
     <div class="nav-item" onclick="location.href=URLS.mensajeria"><span class="ico">✉️</span> Mensajería <span id="msgBadgePad" style="background:#e05a4e;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:auto;display:none">0</span></div>
     <div class="sb-sec">Mi cuenta</div>
@@ -182,6 +184,22 @@
       </div>
       <div class="hijo-selector" id="hijoSelectorCom"></div>
       <div id="comunicadosListaP"></div>
+    </div>
+
+    <!-- TUTORIAS PADRE -->
+    <div class="view" id="view-tutorias-p">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Tutorías</div><div class="sec-sub">Citas agendadas por el coordinador</div></div>
+      </div>
+      <div id="tutoriasListP"></div>
+    </div>
+
+    <!-- DISCIPLINA PADRE -->
+    <div class="view" id="view-disciplina-p">
+      <div class="sec-hdr">
+        <div><div class="sec-title">Disciplina</div><div class="sec-sub">Historial de incidencias de tu hijo/a</div></div>
+      </div>
+      <div id="disciplinaListP"></div>
     </div>
 
     <!-- VINCULAR HIJO -->
@@ -317,17 +335,20 @@ async function navTo(view) {
   document.getElementById('nav-' + view)?.classList.add('active');
 
   const labels = { inicio:'Resumen', materias:'Materias', asistencia:'Asistencia',
-                   alertas:'Alertas', comunicados:'Comunicados', vincular:'Vincular Hijo' };
+                   alertas:'Alertas', comunicados:'Comunicados', vincular:'Vincular Hijo',
+                   'tutorias-p':'Tutorías', 'disciplina-p':'Disciplina' };
   UI.setBreadcrumb([{ label: labels[view] || view }]);
 
   if (!hijoActual && view !== 'vincular') { renderSinHijos(); return; }
 
-  if (view === 'inicio')      await renderInicio();
-  if (view === 'materias')    await renderMaterias();
-  if (view === 'asistencia')  await renderAsistenciaP();
-  if (view === 'alertas')     await renderAlertas();
-  if (view === 'comunicados') await renderComunicadosP();
-  if (view === 'vincular')    await renderHijosVinculados();
+  if (view === 'inicio')        await renderInicio();
+  if (view === 'materias')      await renderMaterias();
+  if (view === 'asistencia')    await renderAsistenciaP();
+  if (view === 'alertas')       await renderAlertas();
+  if (view === 'comunicados')   await renderComunicadosP();
+  if (view === 'vincular')      await renderHijosVinculados();
+  if (view === 'tutorias-p')    await renderTutoriasP();
+  if (view === 'disciplina-p')  await renderDisciplinaP();
 }
 
 /* ══ INICIO ══ */
@@ -921,6 +942,97 @@ async function imprimirBoletaPadre() {
   win.document.write(html); win.document.close();
   setTimeout(()=>win.print(), 600);
 }
+
+/* ══ TUTORIAS PADRE ══ */
+const ESTADO_TUT_P = {
+  pendiente:  { lbl:'PENDIENTE',  color:'#FAEEDA', tc:'#633806' },
+  confirmada: { lbl:'CONFIRMADA', color:'#EAF3DE', tc:'#27500A' },
+  rechazada:  { lbl:'RECHAZADA',  color:'#FCEBEB', tc:'#791F1F' },
+  realizada:  { lbl:'REALIZADA',  color:'#E6F1FB', tc:'#0C447C' },
+};
+
+async function renderTutoriasP() {
+  const el = document.getElementById('tutoriasListP');
+  el.innerHTML = '<div style="color:var(--gr);font-size:13px;padding:16px">Cargando...</div>';
+  const tutorias = await DB.tutorias.listarDePadre(Auth.user.id);
+
+  // Actualizar badge
+  const pendientes = tutorias.filter(t => t.estado === 'pendiente').length;
+  const nb = document.getElementById('nb-tutorias');
+  if (nb) { nb.textContent = pendientes; nb.style.display = pendientes > 0 ? 'inline' : 'none'; }
+
+  if (!tutorias.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">📅</div><p>Sin tutorías agendadas.</p></div>';
+    return;
+  }
+  el.innerHTML = tutorias.map(t => {
+    const est   = ESTADO_TUT_P[t.estado] || ESTADO_TUT_P.pendiente;
+    const fecha = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'2-digit',month:'long'}) : '—';
+    return `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div>
+          <span style="background:${est.color};color:${est.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${est.lbl}</span>
+          <div style="font-size:14px;font-weight:600;color:var(--y);margin-top:4px">${UI.esc(t.alumno?.nombre||'—')}</div>
+          <div style="font-size:12px;color:var(--gr)">${fecha} ${t.hora||''} · Coordinador: ${UI.esc(t.coordinador?.nombre||'—')}</div>
+        </div>
+        ${t.estado === 'pendiente' ? `
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          <button class="btn btn-y btn-sm" onclick="responderTutoria('${t.id}','confirmada')">✓ Confirmar</button>
+          <button class="btn btn-g btn-sm" onclick="responderTutoria('${t.id}','rechazada')">✗ Rechazar</button>
+        </div>` : ''}
+      </div>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:${t.acuerdos?'8px':'0'}">${UI.esc(t.motivo||'')}</div>
+      ${t.acuerdos ? `<div style="background:rgba(114,201,111,.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12px;color:var(--grl)"><b>Acuerdos:</b> ${UI.esc(t.acuerdos)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function responderTutoria(id, estado) {
+  const accion = estado === 'confirmada' ? 'confirmar' : 'rechazar';
+  if (!confirm(`¿Deseas ${accion} esta tutoría?`)) return;
+  await DB.tutorias.actualizarEstado(id, estado);
+  UI.toast(estado === 'confirmada' ? '✓ Tutoría confirmada' : 'Tutoría rechazada');
+  await renderTutoriasP();
+}
+
+/* ══ DISCIPLINA PADRE ══ */
+const GRAVEDAD_P = {
+  leve:      { lbl:'LEVE',      color:'#EAF3DE', tc:'#27500A' },
+  grave:     { lbl:'GRAVE',     color:'#FAEEDA', tc:'#633806' },
+  muy_grave: { lbl:'MUY GRAVE', color:'#FCEBEB', tc:'#791F1F' },
+};
+
+async function renderDisciplinaP() {
+  const el = document.getElementById('disciplinaListP');
+  el.innerHTML = '<div style="color:var(--gr);font-size:13px;padding:16px">Cargando...</div>';
+  const faltas = await DB.disciplina.listarDePadre(Auth.user.id);
+
+  // Badge — faltas no resueltas
+  const activas = faltas.filter(f => !f.resuelta).length;
+  const nb = document.getElementById('nb-disciplina');
+  if (nb) { nb.textContent = activas; nb.style.display = activas > 0 ? 'inline' : 'none'; }
+
+  if (!faltas.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">✅</div><p>Sin incidencias registradas.</p></div>';
+    return;
+  }
+  el.innerHTML = faltas.map(f => {
+    const grav = GRAVEDAD_P[f.tipo?.gravedad] || GRAVEDAD_P.leve;
+    const dt = f.fecha_hora ? new Date(f.fecha_hora).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:12px 16px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06);${f.resuelta?'opacity:.6':''}">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span style="background:${grav.color};color:${grav.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${grav.lbl}</span>
+        ${f.resuelta ? '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">RESUELTA</span>' : ''}
+      </div>
+      <div style="font-size:14px;font-weight:600;color:var(--y)">${UI.esc(f.tipo?.nombre||'—')}</div>
+      <div style="font-size:12px;color:var(--gr);margin-bottom:${f.descripcion?'4px':'0'}">${UI.esc(f.alumno?.nombre||'—')} · ${dt}</div>
+      ${f.descripcion ? `<div style="font-size:12px;color:var(--tx2)">${UI.esc(f.descripcion)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
 </script>
 </body>
 </html>

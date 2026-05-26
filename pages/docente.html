@@ -35,6 +35,8 @@
     <div class="nav-item" id="nav-materias" style="display:none" onclick="navTo('materias')"><span class="ico">📚</span> <span id="nav-materias-lbl">Materias</span></div>
     <div class="sb-sec">Herramientas</div>
     <div class="nav-item" id="nav-comunicados" style="display:none" onclick="navTo('comunicados')"><span class="ico">📢</span> Comunicados</div>
+    <div class="nav-item" id="nav-tutorias"   style="display:none" onclick="navTo('tutorias')"><span class="ico">📅</span> Tutorías</div>
+    <div class="nav-item" id="nav-disciplina" style="display:none" onclick="navTo('disciplina')"><span class="ico">⚠️</span> Disciplina</div>
     <div class="nav-item" id="nav-mensajeria" onclick="location.href=URLS.mensajeria">
       <span class="ico">✉️</span> Mensajería
       <span id="msgBadgeDoc" style="background:#e05a4e;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:auto;display:none">0</span>
@@ -315,6 +317,91 @@
   </div>
 </div></div>
 
+<!-- VIEW: Tutorias -->
+<div class="view" id="view-tutorias" style="display:none">
+  <div class="sec-hdr">
+    <div><div class="sec-title">Tutorías</div><div class="sec-sub">Citas con padres de familia</div></div>
+    <button class="btn btn-y" id="btnNuevaTutoria" onclick="abrirModalTutoria()" style="display:none">+ Nueva tutoría</button>
+  </div>
+  <div class="filter-row">
+    <div class="filter-chip active" data-tf="todos"      onclick="setFiltroTut(this,'todos')">Todas</div>
+    <div class="filter-chip"        data-tf="pendiente"  onclick="setFiltroTut(this,'pendiente')">Pendientes</div>
+    <div class="filter-chip"        data-tf="confirmada" onclick="setFiltroTut(this,'confirmada')">Confirmadas</div>
+    <div class="filter-chip"        data-tf="realizada"  onclick="setFiltroTut(this,'realizada')">Realizadas</div>
+  </div>
+  <div id="tutoriasList"></div>
+</div>
+
+<!-- VIEW: Disciplina -->
+<div class="view" id="view-disciplina" style="display:none">
+  <div class="sec-hdr">
+    <div><div class="sec-title">Disciplina</div><div class="sec-sub">Bitácora de incidencias</div></div>
+    <button class="btn btn-y" onclick="abrirModalFalta()">+ Nueva incidencia</button>
+  </div>
+  <div class="filter-row">
+    <input class="search-inp" id="searchFalta" placeholder="🔍 Buscar alumno…" oninput="renderFaltas()"/>
+    <div class="filter-chip active" data-df="todas"     onclick="setFiltroDis(this,'todas')">Todas</div>
+    <div class="filter-chip"        data-df="activas"   onclick="setFiltroDis(this,'activas')">Activas</div>
+    <div class="filter-chip"        data-df="resueltas" onclick="setFiltroDis(this,'resueltas')">Resueltas</div>
+  </div>
+  <div id="faltasList"></div>
+</div>
+
+<!-- MODAL: Nueva tutoría -->
+<div class="overlay" id="mTutoria"><div class="modal" style="max-width:480px">
+  <div class="modal-title">📅 Nueva tutoría</div>
+  <div class="field">
+    <label class="lbl">Grupo</label>
+    <select class="sel" id="tutGrupo" onchange="cargarAlumnosTutoria()"><option value="">— Selecciona grupo —</option></select>
+  </div>
+  <div class="field">
+    <label class="lbl">Alumno</label>
+    <select class="sel" id="tutAlumno"><option value="">— Selecciona alumno —</option></select>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field"><label class="lbl">Fecha</label><input class="inp" type="date" id="tutFecha"/></div>
+    <div class="field"><label class="lbl">Hora</label><input class="inp" type="time" id="tutHora" value="10:00"/></div>
+  </div>
+  <div class="field"><label class="lbl">Motivo</label><textarea class="inp" id="tutMotivo" rows="3" placeholder="Motivo de la cita…" style="resize:vertical;width:100%"></textarea></div>
+  <div id="tutMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mTutoria')">Cancelar</button>
+    <button class="btn btn-y" onclick="guardarTutoria()">Agendar cita</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Resultado tutoría -->
+<div class="overlay" id="mResultado"><div class="modal" style="max-width:480px">
+  <div class="modal-title">✅ Registrar resultado</div>
+  <input type="hidden" id="resultTutId"/>
+  <div class="field"><label class="lbl">Acuerdos</label><textarea class="inp" id="resultAcuerdos" rows="3" placeholder="Acuerdos alcanzados en la sesión…" style="resize:vertical;width:100%"></textarea></div>
+  <div class="field"><label class="lbl">Observaciones</label><input class="inp" id="resultObs" placeholder="Notas adicionales…"/></div>
+  <div class="field"><label class="lbl">Seguimiento (opcional)</label><input class="inp" type="date" id="resultSeguimiento"/></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mResultado')">Cancelar</button>
+    <button class="btn btn-y" onclick="guardarResultado()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Nueva incidencia -->
+<div class="overlay" id="mFalta"><div class="modal" style="max-width:480px">
+  <div class="modal-title">⚠️ Nueva incidencia</div>
+  <div class="field">
+    <label class="lbl">Alumno</label>
+    <select class="sel" id="faltaAlumno"><option value="">— Selecciona alumno —</option></select>
+  </div>
+  <div class="field">
+    <label class="lbl">Tipo de falta</label>
+    <select class="sel" id="faltaTipo"><option value="">— Selecciona tipo —</option></select>
+  </div>
+  <div class="field"><label class="lbl">Descripción (opcional)</label><textarea class="inp" id="faltaDesc" rows="2" placeholder="Detalles adicionales…" style="resize:vertical;width:100%"></textarea></div>
+  <div id="faltaMsg" style="font-size:12px;margin-top:6px;display:none"></div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mFalta')">Cancelar</button>
+    <button class="btn btn-y" onclick="guardarFalta()">Registrar</button>
+  </div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -352,7 +439,7 @@ async function navTo(view){
     UI.setBreadcrumb([{label:'Ciclos Escolares'}]);
     UI.setTopbar(esAdmin ? [{label:'+ Nuevo Ciclo',action:"UI.openModal('mCiclo')"}] : []);
     CUR={ciclo:null,grupo:null,materia:null};
-    ['nav-grupos','nav-materias','nav-comunicados'].forEach(id=>document.getElementById(id).style.display='none');
+    ['nav-grupos','nav-materias','nav-comunicados','nav-tutorias','nav-disciplina'].forEach(id=>document.getElementById(id).style.display='none');
     await loadCiclos();
   }
   if(view==='grupos'){
@@ -372,6 +459,20 @@ async function navTo(view){
     UI.setBreadcrumb([{label:CUR.ciclo?.nombre,action:"navTo('grupos')"},{label:CUR.grupo?.nombre,action:"navTo('materias')"},{label:'Comunicados'}]);
     UI.setTopbar([{label:'📢 Nuevo Comunicado',action:"UI.openModal('mComunicado')"}]);
     await loadComunicados();
+  }
+  if(view==='tutorias'){
+    document.getElementById('nav-tutorias').classList.add('active');
+    UI.setBreadcrumb([{label:'Tutorías'}]);
+    UI.setTopbar([]);
+    const esCoord = Auth.perfil?.rol === 'coordinador' || Auth.perfil?.rol === 'admin';
+    document.getElementById('btnNuevaTutoria').style.display = esCoord ? 'inline-flex' : 'none';
+    await renderTutorias();
+  }
+  if(view==='disciplina'){
+    document.getElementById('nav-disciplina').classList.add('active');
+    UI.setBreadcrumb([{label:'Disciplina'}]);
+    UI.setTopbar([]);
+    await renderDisciplina();
   }
 }
 
@@ -438,6 +539,8 @@ async function abrirGrupo(id,nombre,turno){
   document.getElementById('nav-materias').style.display='flex';
   document.getElementById('nav-materias-lbl').textContent=nombre;
   document.getElementById('nav-comunicados').style.display='flex';
+  document.getElementById('nav-tutorias').style.display='flex';
+  document.getElementById('nav-disciplina').style.display='flex';
   await navTo('materias');
 }
 async function crearGrupo(){
@@ -1211,6 +1314,238 @@ function mostrarCritMsg(txt, tipo) {
   el.style.color   = tipo === 'ok' ? 'var(--ok)' : tipo === 'warn' ? 'var(--warn)' : 'var(--err)';
   el.textContent   = txt;
 }
+
+/* ══ TUTORIAS ══ */
+let todasTutorias = [];
+let filtroTut = 'todos';
+let tiposFalta = [];
+let todasFaltas = [];
+let filtroDis = 'todas';
+
+async function renderTutorias() {
+  const esCoord = ['coordinador','admin'].includes(Auth.perfil?.rol);
+  const filtro  = filtroTut === 'todos' ? {} : { estado: filtroTut };
+  todasTutorias = await DB.tutorias.listar(filtro);
+  renderListaTutorias();
+}
+
+function setFiltroTut(el, val) {
+  filtroTut = val;
+  document.querySelectorAll('[data-tf]').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  renderTutorias();
+}
+
+const ESTADO_TUT = {
+  pendiente:  { lbl:'PENDIENTE',  color:'#FAEEDA', tc:'#633806' },
+  confirmada: { lbl:'CONFIRMADA', color:'#EAF3DE', tc:'#27500A' },
+  rechazada:  { lbl:'RECHAZADA',  color:'#FCEBEB', tc:'#791F1F' },
+  realizada:  { lbl:'REALIZADA',  color:'#E6F1FB', tc:'#0C447C' },
+};
+
+function renderListaTutorias() {
+  const el = document.getElementById('tutoriasList');
+  const esCoord = ['coordinador','admin'].includes(Auth.perfil?.rol);
+  if (!todasTutorias.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">📅</div><p>Sin tutorías registradas.</p></div>';
+    return;
+  }
+  el.innerHTML = todasTutorias.map(t => {
+    const est = ESTADO_TUT[t.estado] || ESTADO_TUT.pendiente;
+    const fecha = t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    return `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid rgba(255,255,255,.06)">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+        <div>
+          <span style="background:${est.color};color:${est.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${est.lbl}</span>
+          <div style="font-size:14px;font-weight:600;color:var(--y);margin-top:4px">${UI.esc(t.alumno?.nombre||'—')}</div>
+          <div style="font-size:12px;color:var(--gr)">${t.alumno?.grupo?.nombre||''} · ${fecha} ${t.hora||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          ${esCoord && t.estado === 'confirmada' ? `<button class="btn btn-y btn-sm" onclick="abrirResultado('${t.id}')">✅ Resultado</button>` : ''}
+          ${esCoord && t.estado !== 'realizada'  ? `<button class="btn btn-g btn-sm" onclick="eliminarTutoria('${t.id}')">🗑</button>` : ''}
+        </div>
+      </div>
+      <div style="font-size:13px;color:var(--tx2);margin-bottom:${t.acuerdos?'8px':'0'}">${UI.esc(t.motivo||'')}</div>
+      ${t.acuerdos ? `<div style="background:rgba(114,201,111,.08);border-left:3px solid var(--ok);padding:8px 12px;border-radius:0 8px 8px 0;font-size:12px;color:var(--grl)"><b>Acuerdos:</b> ${UI.esc(t.acuerdos)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function abrirModalTutoria() {
+  const { data: grupos } = await sb.from('grupos').select('id,nombre,ciclo:ciclos(nombre)').order('nombre');
+  const sel = document.getElementById('tutGrupo');
+  sel.innerHTML = '<option value="">— Selecciona grupo —</option>' +
+    (grupos||[]).map(g=>`<option value="${g.id}">${UI.esc(g.nombre)} · ${g.ciclo?.nombre||''}</option>`).join('');
+  document.getElementById('tutAlumno').innerHTML = '<option value="">— Primero selecciona grupo —</option>';
+  document.getElementById('tutFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('tutMotivo').value = '';
+  document.getElementById('tutMsg').style.display = 'none';
+  UI.openModal('mTutoria');
+}
+
+async function cargarAlumnosTutoria() {
+  const grupoId = document.getElementById('tutGrupo').value;
+  const sel = document.getElementById('tutAlumno');
+  if (!grupoId) { sel.innerHTML = '<option value="">— Selecciona grupo primero —</option>'; return; }
+  const alumnos = await DB.alumnos.listarPorGrupo(grupoId);
+  sel.innerHTML = '<option value="">— Selecciona alumno —</option>' +
+    alumnos.map(a=>`<option value="${a.id}">${UI.esc(a.nombre)}</option>`).join('');
+}
+
+async function guardarTutoria() {
+  const alumno_id = document.getElementById('tutAlumno').value;
+  const fecha     = document.getElementById('tutFecha').value;
+  const hora      = document.getElementById('tutHora').value;
+  const motivo    = document.getElementById('tutMotivo').value.trim();
+  const msg       = document.getElementById('tutMsg');
+  if (!alumno_id) { msg.style.display='block';msg.style.color='var(--err)';msg.textContent='Selecciona un alumno.';return; }
+  if (!motivo)    { msg.style.display='block';msg.style.color='var(--err)';msg.textContent='Escribe el motivo.';return; }
+  await DB.tutorias.crear({ alumno_id, fecha, hora, motivo });
+  UI.closeModal('mTutoria');
+  UI.toast('Tutoría agendada ✓');
+  await renderTutorias();
+}
+
+function abrirResultado(id) {
+  document.getElementById('resultTutId').value = id;
+  document.getElementById('resultAcuerdos').value = '';
+  document.getElementById('resultObs').value = '';
+  document.getElementById('resultSeguimiento').value = '';
+  UI.openModal('mResultado');
+}
+
+async function guardarResultado() {
+  const id = document.getElementById('resultTutId').value;
+  await DB.tutorias.registrarResultado(id, {
+    acuerdos:         document.getElementById('resultAcuerdos').value.trim(),
+    observaciones:    document.getElementById('resultObs').value.trim(),
+    seguimiento_fecha: document.getElementById('resultSeguimiento').value || null,
+  });
+  UI.closeModal('mResultado');
+  UI.toast('Resultado registrado ✓');
+  await renderTutorias();
+}
+
+async function eliminarTutoria(id) {
+  if (!confirm('¿Eliminar esta tutoría?')) return;
+  await DB.tutorias.eliminar(id);
+  UI.toast('Tutoría eliminada');
+  await renderTutorias();
+}
+
+/* ══ DISCIPLINA ══ */
+async function renderDisciplina() {
+  const [faltas, tipos] = await Promise.all([
+    DB.disciplina.listarFaltas(),
+    DB.disciplina.listarTipos(),
+  ]);
+  todasFaltas = faltas;
+  tiposFalta  = tipos;
+  renderFaltas();
+}
+
+function setFiltroDis(el, val) {
+  filtroDis = val;
+  document.querySelectorAll('[data-df]').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  renderFaltas();
+}
+
+const GRAVEDAD = {
+  leve:      { lbl:'LEVE',      color:'#EAF3DE', tc:'#27500A' },
+  grave:     { lbl:'GRAVE',     color:'#FAEEDA', tc:'#633806' },
+  muy_grave: { lbl:'MUY GRAVE', color:'#FCEBEB', tc:'#791F1F' },
+};
+
+function renderFaltas() {
+  const el  = document.getElementById('faltasList');
+  const q   = (document.getElementById('searchFalta')?.value||'').toLowerCase();
+  let lista = todasFaltas.filter(f => {
+    const matchQ = !q || (f.alumno?.nombre||'').toLowerCase().includes(q);
+    const matchF = filtroDis==='todas' ? true : filtroDis==='activas' ? !f.resuelta : f.resuelta;
+    return matchQ && matchF;
+  });
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">⚠️</div><p>Sin incidencias en este filtro.</p></div>';
+    return;
+  }
+  el.innerHTML = lista.map(f => {
+    const grav = GRAVEDAD[f.tipo?.gravedad] || GRAVEDAD.leve;
+    const dt = f.fecha_hora ? new Date(f.fecha_hora).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '—';
+    return `
+    <div style="background:rgba(0,0,0,.15);border-radius:10px;padding:12px 16px;margin-bottom:8px;border:1px solid rgba(255,255,255,.06);${f.resuelta?'opacity:.6':''}">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="background:${grav.color};color:${grav.tc};font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">${grav.lbl}</span>
+            ${f.resuelta ? '<span style="background:#E6F1FB;color:#0C447C;font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600">RESUELTA</span>' : ''}
+          </div>
+          <div style="font-size:14px;font-weight:600;color:var(--y)">${UI.esc(f.alumno?.nombre||'—')}</div>
+          <div style="font-size:12px;color:var(--gr)">${UI.esc(f.tipo?.nombre||'—')} · ${f.alumno?.grupo?.nombre||''} · ${dt}</div>
+          ${f.descripcion ? `<div style="font-size:12px;color:var(--tx2);margin-top:4px">${UI.esc(f.descripcion)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">
+          ${!f.resuelta ? `<button class="btn btn-g btn-sm" onclick="resolverFalta('${f.id}')">✓ Resolver</button>` : ''}
+          <button class="btn btn-g btn-sm" onclick="eliminarFalta('${f.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function abrirModalFalta() {
+  const rol = Auth.perfil?.rol;
+  let alumnos = [];
+  if (rol === 'admin' || rol === 'coordinador') {
+    const { data } = await sb.from('alumnos').select('id,nombre,grupo:grupos(nombre)').eq('activo',true).order('nombre');
+    alumnos = data||[];
+  } else {
+    const { data: gds } = await sb.from('grupo_docentes').select('grupo_id').eq('docente_id', Auth.user.id);
+    const grupoIds = (gds||[]).map(g=>g.grupo_id);
+    if (grupoIds.length) {
+      const { data } = await sb.from('alumnos').select('id,nombre,grupo:grupos(nombre)').in('grupo_id',grupoIds).eq('activo',true).order('nombre');
+      alumnos = data||[];
+    }
+  }
+  document.getElementById('faltaAlumno').innerHTML = '<option value="">— Selecciona alumno —</option>' +
+    alumnos.map(a=>`<option value="${a.id}">${UI.esc(a.nombre)} (${a.grupo?.nombre||''})</option>`).join('');
+  if (!tiposFalta.length) tiposFalta = await DB.disciplina.listarTipos();
+  document.getElementById('faltaTipo').innerHTML = '<option value="">— Tipo de falta —</option>' +
+    tiposFalta.map(t=>`<option value="${t.id}">[${t.gravedad.replace('_',' ').toUpperCase()}] ${UI.esc(t.nombre)}</option>`).join('');
+  document.getElementById('faltaDesc').value = '';
+  document.getElementById('faltaMsg').style.display = 'none';
+  UI.openModal('mFalta');
+}
+
+async function guardarFalta() {
+  const alumno_id     = document.getElementById('faltaAlumno').value;
+  const tipo_falta_id = document.getElementById('faltaTipo').value;
+  const descripcion   = document.getElementById('faltaDesc').value.trim();
+  const msg = document.getElementById('faltaMsg');
+  if (!alumno_id)     { msg.style.display='block';msg.style.color='var(--err)';msg.textContent='Selecciona un alumno.';return; }
+  if (!tipo_falta_id) { msg.style.display='block';msg.style.color='var(--err)';msg.textContent='Selecciona el tipo de falta.';return; }
+  await DB.disciplina.registrarFalta({ alumno_id, tipo_falta_id, descripcion });
+  UI.closeModal('mFalta');
+  UI.toast('Incidencia registrada ✓');
+  await renderDisciplina();
+}
+
+async function resolverFalta(id) {
+  await DB.disciplina.marcarResuelta(id, true);
+  todasFaltas = todasFaltas.map(f => f.id===id ? {...f, resuelta:true} : f);
+  renderFaltas();
+  UI.toast('Marcada como resuelta ✓');
+}
+
+async function eliminarFalta(id) {
+  if (!confirm('¿Eliminar esta incidencia?')) return;
+  await DB.disciplina.eliminarFalta(id);
+  todasFaltas = todasFaltas.filter(f => f.id !== id);
+  renderFaltas();
+  UI.toast('Incidencia eliminada');
+}
+
 </script>
 </body>
 </html>
