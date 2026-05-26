@@ -35,8 +35,8 @@
     <div class="nav-item" id="nav-materias" style="display:none" onclick="navTo('materias')"><span class="ico">📚</span> <span id="nav-materias-lbl">Materias</span></div>
     <div class="sb-sec">Herramientas</div>
     <div class="nav-item" id="nav-comunicados" style="display:none" onclick="navTo('comunicados')"><span class="ico">📢</span> Comunicados</div>
-    <div class="nav-item" id="nav-tutorias"   style="display:none" onclick="navTo('tutorias')"><span class="ico">📅</span> Tutorías</div>
-    <div class="nav-item" id="nav-disciplina" style="display:none" onclick="navTo('disciplina')"><span class="ico">⚠️</span> Disciplina</div>
+    <div class="nav-item" id="nav-tutorias"   onclick="navTo('tutorias')"><span class="ico">📅</span> Tutorías</div>
+    <div class="nav-item" id="nav-disciplina" onclick="navTo('disciplina')"><span class="ico">⚠️</span> Disciplina</div>
     <div class="nav-item" id="nav-mensajeria" onclick="location.href=URLS.mensajeria">
       <span class="ico">✉️</span> Mensajería
       <span id="msgBadgeDoc" style="background:#e05a4e;color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;margin-left:auto;display:none">0</span>
@@ -439,7 +439,7 @@ async function navTo(view){
     UI.setBreadcrumb([{label:'Ciclos Escolares'}]);
     UI.setTopbar(esAdmin ? [{label:'+ Nuevo Ciclo',action:"UI.openModal('mCiclo')"}] : []);
     CUR={ciclo:null,grupo:null,materia:null};
-    ['nav-grupos','nav-materias','nav-comunicados','nav-tutorias','nav-disciplina'].forEach(id=>document.getElementById(id).style.display='none');
+    ['nav-grupos','nav-materias','nav-comunicados'].forEach(id=>document.getElementById(id).style.display='none');
     await loadCiclos();
   }
   if(view==='grupos'){
@@ -539,8 +539,6 @@ async function abrirGrupo(id,nombre,turno){
   document.getElementById('nav-materias').style.display='flex';
   document.getElementById('nav-materias-lbl').textContent=nombre;
   document.getElementById('nav-comunicados').style.display='flex';
-  document.getElementById('nav-tutorias').style.display='flex';
-  document.getElementById('nav-disciplina').style.display='flex';
   await navTo('materias');
 }
 async function crearGrupo(){
