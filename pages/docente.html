@@ -654,19 +654,29 @@ async function loadCacheMateria(){
     DB.asistencia.listarPorMateria(CUR.materia.id),
     DB.criterios.listar(CUR.materia.id),
   ]);
-  // Filtrar actividades por parcial actual si existe
-  const actividades = CUR.parcial
-    ? todasActividades.filter(a => a.parcial_id === CUR.parcial.id || a.parcial_id === null)
-    : todasActividades;
-  cache = { ...cache, alumnos, actividades, califs, asistencia, criterios };
+  // Guardar todas las actividades para filtrar localmente al cambiar parcial
+  const actividades = filtrarActividadesPorParcial(todasActividades);
+  cache = { ...cache, alumnos, todasActividades, actividades, califs, asistencia, criterios };
+}
+
+function filtrarActividadesPorParcial(todas) {
+  if (!CUR.parcial) return todas;
+  const hayParciales = cache.parciales && cache.parciales.length > 0;
+  // Si el ciclo tiene parciales configurados: filtrar estrictamente por parcial_id
+  // Las actividades con parcial_id=null son legacy (sin parcial) — no aparecen en ningún parcial específico
+  if (hayParciales) {
+    return todas.filter(a => a.parcial_id === CUR.parcial.id);
+  }
+  return todas;
 }
 
 async function cambiarParcial(parcialId) {
   const p = cache.parciales.find(x => x.id === parcialId);
   if (!p) return;
   CUR.parcial = p;
+  // Recalcular filtro local sin ir a BD de nuevo
+  cache.actividades = filtrarActividadesPorParcial(cache.todasActividades || []);
   renderSelectorParcial();
-  await loadCacheMateria();
   renderGradebook();
 }
 
@@ -793,11 +803,13 @@ async function crearActividad(){
     tipo:       'actividad',
     fecha:      document.getElementById('acFecha').value||null,
     valor_max:  10,
-    orden:      cache.actividades.length+1,
+    orden:      (cache.todasActividades||cache.actividades).length+1,
     criterio_id: criterioId||undefined,
     parcial_id: CUR.parcial?.id || undefined,
   });
-  cache.actividades.push(data);
+  // Mantener ambas listas sincronizadas
+  if (cache.todasActividades) cache.todasActividades.push(data);
+  cache.actividades = filtrarActividadesPorParcial(cache.todasActividades || []);
   UI.closeModal('mActividad');document.getElementById('acNom').value='';
   UI.toast('Actividad agregada ✓');
   if(CUR_TAB==='cal')renderGradebook();else renderActividades();
@@ -805,7 +817,8 @@ async function crearActividad(){
 async function eliminarActividad(id){
   if(!confirm('¿Eliminar?'))return;
   await DB.actividades.eliminar(id);
-  cache.actividades=cache.actividades.filter(a=>a.id!==id);
+  if (cache.todasActividades) cache.todasActividades = cache.todasActividades.filter(a=>a.id!==id);
+  cache.actividades = cache.actividades.filter(a=>a.id!==id);
   UI.toast('Eliminada');renderActividades();
 }
 function renderActividades(){
