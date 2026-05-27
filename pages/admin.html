@@ -68,6 +68,7 @@
   <nav class="sb-nav">
     <div class="sb-sec">Académico</div>
     <div class="nav-item active" id="nav-dashboard"  onclick="navTo('dashboard')">  <span class="ico">📊</span> Dashboard</div>
+    <div class="nav-item"        id="nav-parciales"   onclick="navTo('parciales')">   <span class="ico">📅</span> Parciales</div>
     <div class="nav-item"        id="nav-grupos"      onclick="navTo('grupos')">      <span class="ico">🏫</span> Grupos y Materias</div>
     <div class="nav-item"        id="nav-reportes"    onclick="navTo('reportes')">    <span class="ico">📈</span> Reportes PDF</div>
     <div class="sb-sec">Usuarios</div>
@@ -124,6 +125,23 @@
         <div class="filter-chip" data-rol="admin"    onclick="setFiltroRol(this,'admin')">   Admins</div>
       </div>
       <div id="usuariosLista"></div>
+    </div>
+
+    <!-- PARCIALES -->
+    <div class="view" id="view-parciales">
+      <div class="sec-hdr">
+        <div>
+          <div class="sec-title">Parciales</div>
+          <div class="sec-sub">Controla los períodos de evaluación por ciclo escolar</div>
+        </div>
+      </div>
+      <div id="parcialesCicloSel" style="margin-bottom:18px">
+        <label class="lbl">Ciclo escolar</label>
+        <select class="sel" id="parcialesCicloId" onchange="cargarParciales()" style="max-width:320px">
+          <option value="">— Selecciona un ciclo —</option>
+        </select>
+      </div>
+      <div id="parcialesLista"></div>
     </div>
 
     <!-- GRUPOS -->
@@ -374,13 +392,14 @@ async function navTo(view) {
   document.getElementById('nav-' + view)?.classList.add('active');
   const labels = {
     dashboard: 'Dashboard', usuarios: 'Usuarios', grupos: 'Grupos',
-    reportes: 'Reportes', 'crear-usuario': 'Nuevo Usuario',
+    parciales: 'Parciales', reportes: 'Reportes', 'crear-usuario': 'Nuevo Usuario',
     'doc-autorizados': 'Docentes autorizados', importar: 'Importar alumnos'
   };
   UI.setBreadcrumb([{ label: labels[view] || view }]);
   if (view === 'dashboard')       await renderDashboard();
   if (view === 'usuarios')        await renderUsuarios();
   if (view === 'grupos')          await renderGruposAdmin();
+  if (view === 'parciales')       await renderParcialesAdmin();
   if (view === 'reportes')        await renderReportes();
   if (view === 'doc-autorizados') await renderDocAutorizados();
   if (view === 'importar')        await cargarCiclosImport();
@@ -515,6 +534,116 @@ async function eliminarUsuario(id, nombre) {
   }
   UI.toast(`${nombre} eliminado`);
   await renderUsuarios();
+}
+
+/* ══ PARCIALES ADMIN ══ */
+async function renderParcialesAdmin() {
+  // Cargar ciclos en el select
+  const { data: ciclos } = await sb.from('ciclos').select('id, nombre, activo').order('created_at', { ascending: false });
+  const sel = document.getElementById('parcialesCicloId');
+  const prevVal = sel.value;
+  sel.innerHTML = '<option value="">— Selecciona un ciclo —</option>' +
+    (ciclos||[]).map(c => `<option value="${c.id}"${c.id===prevVal?' selected':''}>${UI.esc(c.nombre)}${c.activo?' ✓':''}</option>`).join('');
+  if (prevVal || (ciclos||[]).length === 1) {
+    if (!prevVal && ciclos.length === 1) sel.value = ciclos[0].id;
+    await cargarParciales();
+  } else {
+    document.getElementById('parcialesLista').innerHTML = '<div class="empty"><div class="empty-ico">📅</div><p>Selecciona un ciclo para ver sus parciales</p></div>';
+  }
+}
+
+async function cargarParciales() {
+  const cicloId = document.getElementById('parcialesCicloId').value;
+  const el = document.getElementById('parcialesLista');
+  if (!cicloId) { el.innerHTML = ''; return; }
+
+  const { data: parciales, error } = await sb.from('parciales')
+    .select('*').eq('ciclo_id', cicloId).order('numero');
+
+  if (error) { el.innerHTML = `<div style="color:var(--err)">Error: ${error.message}</div>`; return; }
+
+  const estadoStyle = { abierto: '--ok', cerrado: '--warn', inhabilitado: '--err' };
+  const estadoLabel = { abierto: '● Abierto', cerrado: '● Cerrado', inhabilitado: '● Inhabilitado' };
+
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <span style="font-size:13px;color:var(--grl)">${(parciales||[]).length} parcial(es) configurado(s)</span>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-g btn-sm" onclick="generarParcialesCiclo('${cicloId}')">⚡ Generar P1-P3</button>
+        <button class="btn btn-y btn-sm" onclick="abrirModalNuevoParcial('${cicloId}')">+ Nuevo parcial</button>
+      </div>
+    </div>
+    ${!(parciales||[]).length ? `
+      <div class="empty"><div class="empty-ico">📅</div>
+        <p>Sin parciales. Usa "Generar P1-P3" para crear automáticamente.</p>
+      </div>` :
+      (parciales||[]).map(p => `
+        <div class="card" style="margin-bottom:10px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="width:32px;height:32px;border-radius:50%;background:var(--acc-bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">${p.numero}</div>
+            <div style="flex:1">
+              <div style="font-weight:600;font-size:14px">${UI.esc(p.nombre)}</div>
+              <div style="font-size:11px;color:var(--grl)">
+                ${p.fecha_inicio||'—'} → ${p.fecha_fin||'—'}
+              </div>
+            </div>
+            <span style="font-size:12px;font-weight:600;color:var(${estadoStyle[p.estado]||'--grl'})">${estadoLabel[p.estado]||p.estado}</span>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              ${p.estado !== 'abierto'   ? `<button class="btn btn-g btn-sm" onclick="cambiarEstadoParcial('${p.id}','abierto')">Abrir</button>` : ''}
+              ${p.estado !== 'cerrado'   ? `<button class="btn btn-g btn-sm" onclick="cambiarEstadoParcial('${p.id}','cerrado')">Cerrar</button>` : ''}
+              ${p.estado !== 'inhabilitado' ? `<button class="btn btn-g btn-sm" onclick="cambiarEstadoParcial('${p.id}','inhabilitado')">Inhabilitar</button>` : ''}
+              <button class="btn btn-d btn-sm" onclick="eliminarParcial('${p.id}')">✕</button>
+            </div>
+          </div>
+        </div>`).join('')
+    }`;
+}
+
+async function cambiarEstadoParcial(id, estado) {
+  const { error } = await sb.from('parciales').update({ estado }).eq('id', id);
+  if (error) { UI.toast('Error al cambiar estado', 'err'); return; }
+  const labels = { abierto: 'Abierto ✓', cerrado: 'Cerrado ✓', inhabilitado: 'Inhabilitado ✓' };
+  UI.toast(labels[estado] || 'Guardado');
+  await cargarParciales();
+}
+
+async function eliminarParcial(id) {
+  if (!confirm('¿Eliminar este parcial? Se desvincularán las actividades asociadas.')) return;
+  const { error } = await sb.from('parciales').delete().eq('id', id);
+  if (error) { UI.toast('Error al eliminar', 'err'); return; }
+  UI.toast('Parcial eliminado');
+  await cargarParciales();
+}
+
+async function generarParcialesCiclo(cicloId) {
+  const { error } = await sb.rpc('generar_parciales_ciclo', { p_ciclo_id: cicloId });
+  if (error) { UI.toast('Error al generar parciales: ' + error.message, 'err'); return; }
+  UI.toast('P1, P2, P3 generados ✓');
+  await cargarParciales();
+}
+
+function abrirModalNuevoParcial(cicloId) {
+  document.getElementById('npCicloId').value = cicloId;
+  document.getElementById('npNombre').value = '';
+  document.getElementById('npNumero').value = '';
+  document.getElementById('npFechaIni').value = '';
+  document.getElementById('npFechaFin').value = '';
+  UI.openModal('mNuevoParcial');
+}
+
+async function guardarNuevoParcial() {
+  const ciclo_id = document.getElementById('npCicloId').value;
+  const nombre   = document.getElementById('npNombre').value.trim();
+  const numero   = parseInt(document.getElementById('npNumero').value);
+  const fecha_inicio = document.getElementById('npFechaIni').value || null;
+  const fecha_fin    = document.getElementById('npFechaFin').value || null;
+  if (!nombre || !numero) { UI.toast('Nombre y número son obligatorios', 'err'); return; }
+  const { error } = await sb.from('parciales')
+    .insert({ ciclo_id, nombre, numero, fecha_inicio, fecha_fin, estado: 'cerrado' });
+  if (error) { UI.toast('Error: ' + (error.message.includes('unique') ? 'Ya existe un parcial con ese número en este ciclo' : error.message), 'err'); return; }
+  UI.closeModal('mNuevoParcial');
+  UI.toast('Parcial creado ✓');
+  await cargarParciales();
 }
 
 /* ══ GRUPOS ADMIN ══ */
@@ -1256,6 +1385,35 @@ function descargarPlantillaAlumnos() {
   <div class="modal-acts">
     <button class="btn btn-g" onclick="UI.closeModal('mTipoFalta')">Cancelar</button>
     <button class="btn btn-y" onclick="guardarTipoFalta()">Guardar</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Nuevo parcial -->
+<div class="overlay" id="mNuevoParcial"><div class="modal" style="max-width:420px">
+  <div class="modal-title">📅 Nuevo parcial</div>
+  <input type="hidden" id="npCicloId"/>
+  <div class="field">
+    <label class="lbl">Nombre del parcial</label>
+    <input class="inp" id="npNombre" placeholder="Ej. Primer Parcial"/>
+  </div>
+  <div class="field">
+    <label class="lbl">Número (1-10)</label>
+    <input class="inp" type="number" id="npNumero" min="1" max="10" placeholder="1"/>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="field">
+      <label class="lbl">Fecha inicio</label>
+      <input class="inp" type="date" id="npFechaIni"/>
+    </div>
+    <div class="field">
+      <label class="lbl">Fecha fin</label>
+      <input class="inp" type="date" id="npFechaFin"/>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--grl);margin-top:4px">El parcial se crea en estado <b>cerrado</b>. Cámbialo a <b>abierto</b> cuando inicie el período.</div>
+  <div class="modal-acts">
+    <button class="btn btn-g" onclick="UI.closeModal('mNuevoParcial')">Cancelar</button>
+    <button class="btn btn-y" onclick="guardarNuevoParcial()">Crear parcial</button>
   </div>
 </div></div>
 

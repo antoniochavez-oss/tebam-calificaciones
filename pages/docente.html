@@ -106,6 +106,8 @@
           👁 Modo vista — materia de otro docente
         </div>
       </div>
+      <!-- Selector de parcial -->
+      <div id="parcialSelector" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--bg2);border-radius:10px;border:1px solid var(--brd)"></div>
       <div class="tabs">
         <div class="tab active" data-tab="cal">Calificaciones</div>
         <div class="tab" data-tab="asis">Asistencia</div>
@@ -409,9 +411,9 @@
 
 <script>
 /* ══ ESTADO ══ */
-let CUR = { ciclo:null, grupo:null, materia:null };
+let CUR = { ciclo:null, grupo:null, materia:null, parcial:null };
 let CUR_TAB = 'cal', CUR_FECHA = new Date().toISOString().split('T')[0];
-let cache = { alumnos:[], actividades:[], califs:{}, asistencia:{} };
+let cache = { alumnos:[], actividades:[], califs:{}, asistencia:{}, parciales:[] };
 let csvRows=[], csvHeaders=[], realtimeChannel=null;
 
 /* ══ INIT ══ */
@@ -591,6 +593,13 @@ async function loadMaterias(){
 }
 async function abrirMateria(id, nombre, docenteAsignadoId=''){
   CUR.materia={id, nombre, docente_asignado_id: docenteAsignadoId || null};
+  // Cargar parciales del ciclo y seleccionar el abierto (o el primero)
+  try {
+    const ps = await DB.parciales.listarPorCiclo(CUR.ciclo.id);
+    cache.parciales = ps;
+    const abierto = ps.find(p => p.estado === 'abierto');
+    CUR.parcial = abierto || ps[0] || null;
+  } catch(e) { cache.parciales = []; CUR.parcial = null; }
   const readonly = !esDueno(CUR.materia);
   document.getElementById('detTitle').textContent=nombre;
   document.getElementById('detSub').textContent=`${CUR.grupo.nombre} · ${CUR.ciclo.nombre}`;
@@ -619,6 +628,7 @@ async function abrirMateria(id, nombre, docenteAsignadoId=''){
   ]);
   UI.setTopbar([]);
   await loadCacheMateria();
+  renderSelectorParcial();
   UI.showView('view-detail');
   activateTab('cal');
   iniciarRealtime();
@@ -637,14 +647,49 @@ async function eliminarMateria(id){
 
 /* ══ CACHE ══ */
 async function loadCacheMateria(){
-  const [alumnos,actividades,califs,asistencia,criterios]=await Promise.all([
+  const [alumnos, todasActividades, califs, asistencia, criterios] = await Promise.all([
     DB.alumnos.listarPorGrupo(CUR.grupo.id),
     DB.actividades.listar(CUR.materia.id),
     DB.calificaciones.listarPorMateria(CUR.materia.id),
     DB.asistencia.listarPorMateria(CUR.materia.id),
     DB.criterios.listar(CUR.materia.id),
   ]);
-  cache={alumnos,actividades,califs,asistencia,criterios};
+  // Filtrar actividades por parcial actual si existe
+  const actividades = CUR.parcial
+    ? todasActividades.filter(a => a.parcial_id === CUR.parcial.id || a.parcial_id === null)
+    : todasActividades;
+  cache = { ...cache, alumnos, actividades, califs, asistencia, criterios };
+}
+
+async function cambiarParcial(parcialId) {
+  const p = cache.parciales.find(x => x.id === parcialId);
+  if (!p) return;
+  CUR.parcial = p;
+  renderSelectorParcial();
+  await loadCacheMateria();
+  renderGradebook();
+}
+
+function renderSelectorParcial() {
+  const el = document.getElementById('parcialSelector');
+  if (!el) return;
+  const ps = cache.parciales || [];
+  if (!ps.length) { el.style.display = 'none'; return; }
+  const badgeColor = { abierto: 'var(--ok)', cerrado: 'var(--warn)', inhabilitado: 'var(--err)' };
+  const badgeLabel = { abierto: '● Abierto', cerrado: '● Cerrado', inhabilitado: '● Inhabilitado' };
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--grl)">Parcial:</span>
+      ${ps.map(p => `
+        <button onclick="cambiarParcial('${p.id}')"
+          style="padding:3px 11px;border-radius:20px;border:1.5px solid ${CUR.parcial?.id===p.id?'var(--acc)':'var(--brd)'};
+                 background:${CUR.parcial?.id===p.id?'var(--acc-bg)':'transparent'};
+                 cursor:pointer;font-size:12px;font-weight:${CUR.parcial?.id===p.id?'600':'400'}">
+          ${UI.esc(p.nombre)}
+        </button>`).join('')}
+      ${CUR.parcial ? `<span style="font-size:11px;color:${badgeColor[CUR.parcial.estado]};margin-left:4px">${badgeLabel[CUR.parcial.estado]}</span>` : ''}
+    </div>`;
 }
 
 /* ══ TABS ══ */
@@ -710,6 +755,7 @@ function renderGradebook(){
 }
 async function saveGrade(alumnoId,actId,val){
   if(!esDueno(CUR.materia)){UI.toast('Sin permiso — materia de otro docente','err');return;}
+  if(CUR.parcial && CUR.parcial.estado !== 'abierto'){UI.toast(`Parcial ${CUR.parcial.nombre} está ${CUR.parcial.estado} — no se puede editar`,'err');return;}
   const valor=val===''?null:Number(val);
   const data=await DB.calificaciones.guardar({alumno_id:alumnoId,actividad_id:actId,valor});
   if(!cache.califs[alumnoId])cache.califs[alumnoId]={};
@@ -735,6 +781,9 @@ async function eliminarAlumno(id){
 
 /* ══ ACTIVIDADES ══ */
 async function crearActividad(){
+  if(CUR.parcial && CUR.parcial.estado !== 'abierto'){
+    UI.toast(`Parcial ${CUR.parcial.nombre} está ${CUR.parcial.estado} — no se pueden agregar actividades`,'err');return;
+  }
   const nombre=document.getElementById('acNom').value.trim();
   if(!nombre){UI.toast('Escribe el nombre','err');return;}
   const criterioId=document.getElementById('acCriterio').value||null;
@@ -746,6 +795,7 @@ async function crearActividad(){
     valor_max:  10,
     orden:      cache.actividades.length+1,
     criterio_id: criterioId||undefined,
+    parcial_id: CUR.parcial?.id || undefined,
   });
   cache.actividades.push(data);
   UI.closeModal('mActividad');document.getElementById('acNom').value='';
