@@ -29,6 +29,49 @@ const DB = window.DB = {
   },
 
   // ─── GRUPOS ────────────────────────────────────────────────
+  // ── PARCIALES ─────────────────────────────────────────────────
+  parciales: {
+    async listarPorCiclo(cicloId) {
+      const { data, error } = await sb.from('parciales')
+        .select('*')
+        .eq('ciclo_id', cicloId)
+        .order('numero');
+      if (error) throw error;
+      return data || [];
+    },
+    async crear({ ciclo_id, nombre, numero, fecha_inicio, fecha_fin }) {
+      const row = { ciclo_id, nombre, numero, estado: 'cerrado' };
+      if (fecha_inicio) row.fecha_inicio = fecha_inicio;
+      if (fecha_fin)   row.fecha_fin   = fecha_fin;
+      const { data, error } = await sb.from('parciales')
+        .insert(row).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async cambiarEstado(id, estado) {
+      const { error } = await sb.from('parciales')
+        .update({ estado }).eq('id', id);
+      if (error) throw error;
+    },
+    async actualizar(id, campos) {
+      const { data, error } = await sb.from('parciales')
+        .update(campos).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    async eliminar(id) {
+      const { error } = await sb.from('parciales').delete().eq('id', id);
+      if (error) throw error;
+    },
+    async generarParaCiclo(cicloId) {
+      const { error } = await sb.rpc('generar_parciales_ciclo', { p_ciclo_id: cicloId });
+      if (error) throw error;
+    },
+    estaAbierto(parcial) {
+      return !parcial || parcial.estado === 'abierto';
+    },
+  },
+
   grupos: {
     async listarPorCiclo(cicloId) {
       const { data, error } = await sb.from('grupos')
@@ -162,9 +205,10 @@ const DB = window.DB = {
       if (error) throw error;
       return data || [];
     },
-    async crear({ materia_id, nombre, tipo, fecha, valor_max, orden, criterio_id }) {
+    async crear({ materia_id, nombre, tipo, fecha, valor_max, orden, criterio_id, parcial_id }) {
       const row = { materia_id, nombre, tipo, fecha, valor_max, orden };
       if (criterio_id) row.criterio_id = criterio_id;
+      if (parcial_id)  row.parcial_id  = parcial_id;
       const { data, error } = await sb.from('actividades')
         .insert(row).select().single();
       if (error) throw error;
