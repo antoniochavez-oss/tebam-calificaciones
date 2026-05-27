@@ -117,6 +117,8 @@
         <div style="font-size:20px;font-weight:700" id="boletaTitulo">—</div>
       </div>
       <div class="boleta-header" id="boletaResumen"></div>
+      <!-- Selector de parcial -->
+      <div id="parcialSelectorAl" style="display:none;margin-bottom:10px;padding:8px 12px;background:var(--gm);border-radius:10px;border:1px solid rgba(255,255,255,.07)"></div>
       <div class="tabs">
         <div class="tab active" data-tab="califs">Calificaciones</div>
         <div class="tab" data-tab="asistMat">Asistencia</div>
@@ -157,6 +159,8 @@ let ciclo  = null;   // ciclo actual
 let materias = [];   // materias del grupo
 let CUR_MATERIA = null;
 let CUR_TAB_AL = 'califs';
+let CUR_PARCIAL_AL = null;   // parcial seleccionado
+let cacheParciales = [];     // parciales del ciclo
 
 /* ══ INIT ══ */
 (async () => {
@@ -343,12 +347,50 @@ async function renderMaterias() {
 async function abrirBoleta(id, nombre) {
   CUR_MATERIA = { id, nombre };
   document.getElementById('boletaTitulo').textContent = nombre;
+  // Cargar parciales del ciclo (solo los visibles: abierto o cerrado)
+  try {
+    const { data: ps } = await sb.from('parciales')
+      .select('*').eq('ciclo_id', ciclo.id)
+      .in('estado', ['abierto','cerrado'])
+      .order('numero');
+    cacheParciales = ps || [];
+    // Seleccionar parcial abierto, si no el último cerrado
+    CUR_PARCIAL_AL = cacheParciales.find(p => p.estado === 'abierto')
+      || cacheParciales[cacheParciales.length - 1]
+      || null;
+  } catch(e) { cacheParciales = []; CUR_PARCIAL_AL = null; }
+  renderSelectorParcialAl();
   UI.showView('view-boleta');
   UI.setBreadcrumb([
     { label: 'Mis Materias', action: "navTo('materias')" },
     { label: nombre }
   ]);
   activateTabAl('califs');
+}
+
+function renderSelectorParcialAl() {
+  const el = document.getElementById('parcialSelectorAl');
+  if (!el) return;
+  if (!cacheParciales.length) { el.style.display = 'none'; return; }
+  el.style.display = '';
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--gr)">Parcial:</span>
+      ${cacheParciales.map(p => `
+        <button onclick="seleccionarParcialAl('${p.id}')"
+          style="padding:3px 11px;border-radius:20px;border:1.5px solid ${CUR_PARCIAL_AL?.id===p.id?'var(--yg)':'rgba(255,255,255,.12)'};
+                 background:${CUR_PARCIAL_AL?.id===p.id?'rgba(255,200,0,.12)':'transparent'};
+                 cursor:pointer;font-size:12px;color:var(--tx);
+                 font-weight:${CUR_PARCIAL_AL?.id===p.id?'600':'400'}">
+          ${UI.esc(p.nombre)}
+        </button>`).join('')}
+    </div>`;
+}
+
+async function seleccionarParcialAl(parcialId) {
+  CUR_PARCIAL_AL = cacheParciales.find(p => p.id === parcialId) || null;
+  renderSelectorParcialAl();
+  if (CUR_TAB_AL === 'califs') renderBoleta();
 }
 
 document.querySelectorAll('#view-boleta .tab').forEach(t =>
@@ -398,10 +440,15 @@ async function renderBoleta() {
   const el = document.getElementById('tab-califs');
   el.innerHTML = `<div class="loader"><div class="spinner"></div><span>Cargando…</span></div>`;
 
-  const [{ data: actividades }, { data: califs }] = await Promise.all([
+  const [{ data: todasActividades }, { data: califs }] = await Promise.all([
     sb.from('actividades').select('*').eq('materia_id', CUR_MATERIA.id).order('orden'),
     sb.from('calificaciones').select('*').eq('alumno_id', alumno.id)
   ]);
+
+  // Filtrar por parcial si hay uno seleccionado
+  const actividades = CUR_PARCIAL_AL
+    ? (todasActividades || []).filter(a => a.parcial_id === CUR_PARCIAL_AL.id || a.parcial_id === null)
+    : (todasActividades || []);
 
   const califMap = {};
   (califs || []).forEach(c => { califMap[c.actividad_id] = c.valor; });
