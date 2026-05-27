@@ -747,23 +747,19 @@ function renderGradebook(){
 
   const usarPonderado = critActivos && critCompletos;
 
-  // Mensaje si el parcial está seleccionado pero no tiene actividades aún
   if (CUR.parcial && actividades.length === 0) {
     const puedeAgregar = esDueno(CUR.materia) && CUR.parcial.estado === 'abierto';
-    document.getElementById('tab-cal').innerHTML = `
-      <div style="background:rgba(255,255,255,.04);border:1px solid var(--brd);border-radius:12px;padding:24px;text-align:center;margin-top:10px">
-        <div style="font-size:28px;margin-bottom:10px">📝</div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:6px">${UI.esc(CUR.parcial.nombre)} — sin actividades</div>
-        <div style="font-size:13px;color:var(--grl)">
-          ${puedeAgregar
-            ? 'Este parcial no tiene actividades aún. Usa <b>+ Actividad</b> para agregar.'
-            : CUR.parcial.estado !== 'abierto'
-              ? `El parcial está <b>${CUR.parcial.estado}</b> — no se pueden agregar actividades.`
-              : 'Sin actividades en este parcial.'}
-        </div>
-      </div>`;
+    let msg = 'Sin actividades en este parcial.';
+    if (puedeAgregar) msg = 'Usa <b>+ Actividad</b> para agregar actividades a este parcial.';
+    else if (CUR.parcial.estado !== 'abierto') msg = 'El parcial esta cerrado, no se pueden agregar actividades.';
+    document.getElementById('tab-cal').innerHTML =
+      '<div style="text-align:center;padding:24px;border:1px solid var(--brd);border-radius:12px;margin-top:10px">' +
+      '<div style="font-size:14px;font-weight:600;margin-bottom:8px">' + UI.esc(CUR.parcial.nombre) + ' — sin actividades</div>' +
+      '<div style="font-size:13px;color:var(--grl)">' + msg + '</div></div>';
     return;
   }
+
+  const thActs=actividades.map(a=>{
     const c = crit.find(x=>x.id===a.criterio_id);
     return `<th title="${c?c.nombre+' '+c.porcentaje+'%':''}">${UI.esc(a.nombre)}${c?`<br><span style="font-size:9px;color:var(--gr);font-weight:400">${c.nombre}</span>`:''}`;
   }).join('');
