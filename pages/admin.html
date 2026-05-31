@@ -258,21 +258,32 @@
     <div class="view" id="view-disciplina-a">
       <div class="sec-hdr">
         <div><div class="sec-title">Incidencias</div><div class="sec-sub">Historial completo del plantel</div></div>
-        <button class="btn btn-g btn-sm" onclick="exportarDisciplinaCSV()">📥 Exportar CSV</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-g btn-sm" onclick="exportarDisciplinaCSV()">📥 Exportar CSV</button>
+          <button class="btn btn-y btn-sm" onclick="exportarIncidenciasPDF()">🖨 Reporte PDF</button>
+        </div>
       </div>
-      <div class="filter-row" style="gap:8px;margin-bottom:14px">
+      <div class="filter-row" style="gap:8px;margin-bottom:14px;flex-wrap:wrap">
         <input class="search-inp" id="searchDisciplinaA" placeholder="🔍 Buscar alumno…" oninput="renderDisciplinaAdmin()"/>
+        <select class="sel" id="filtroGrupoA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
+          <option value="">Todos los grupos</option>
+        </select>
         <select class="sel" id="filtroGravedadA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
           <option value="">Todas las gravedades</option>
           <option value="leve">Leve</option>
           <option value="grave">Grave</option>
           <option value="muy_grave">Muy grave</option>
         </select>
+        <select class="sel" id="filtroTipoA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
+          <option value="">Todos los tipos</option>
+        </select>
         <select class="sel" id="filtroResueltaA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 12px;font-size:12px">
           <option value="">Todas</option>
           <option value="false">Activas</option>
           <option value="true">Resueltas</option>
         </select>
+        <input type="date" class="inp" id="filtroFechaDesdeA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 10px;font-size:12px" title="Desde">
+        <input type="date" class="inp" id="filtroFechaHastaA" onchange="renderDisciplinaAdmin()" style="width:auto;padding:7px 10px;font-size:12px" title="Hasta">
       </div>
       <div id="disciplinaAdminLista"></div>
     </div>
@@ -1490,9 +1501,28 @@ let todasFaltasAdmin = [];
 
 async function renderDisciplinaAdminInit() {
   const { data } = await sb.from('faltas_disciplina')
-    .select('*, alumno:alumnos(nombre, grupo:grupos(nombre)), docente:perfiles!faltas_disciplina_docente_id_fkey(nombre), tipo:tipos_falta(nombre, gravedad)')
+    .select('*, alumno:alumnos(nombre, grupo:grupos(id, nombre)), docente:perfiles!faltas_disciplina_docente_id_fkey(nombre), tipo:tipos_falta(id, nombre, gravedad)')
     .order('fecha_hora', { ascending: false });
   todasFaltasAdmin = data || [];
+
+  // Poblar selector de grupos
+  const grupos = [...new Map((todasFaltasAdmin).map(f => [f.alumno?.grupo?.id, f.alumno?.grupo]).filter(([k]) => k)).values()];
+  const selGrupo = document.getElementById('filtroGrupoA');
+  if (selGrupo && selGrupo.options.length <= 1) {
+    grupos.sort((a,b) => (a?.nombre||'').localeCompare(b?.nombre||'')).forEach(g => {
+      const o = document.createElement('option'); o.value = g.id; o.textContent = g.nombre; selGrupo.appendChild(o);
+    });
+  }
+
+  // Poblar selector de tipos
+  const tipos = [...new Map((todasFaltasAdmin).map(f => [f.tipo?.id, f.tipo]).filter(([k]) => k)).values()];
+  const selTipo = document.getElementById('filtroTipoA');
+  if (selTipo && selTipo.options.length <= 1) {
+    tipos.sort((a,b) => (a?.nombre||'').localeCompare(b?.nombre||'')).forEach(t => {
+      const o = document.createElement('option'); o.value = t.id; o.textContent = t.nombre; selTipo.appendChild(o);
+    });
+  }
+
   const el = document.getElementById('disciplinaAdminLista');
   el.innerHTML = `<div style="font-size:12px;color:var(--gr);margin-bottom:10px">${todasFaltasAdmin.length} incidencias totales</div>`;
   renderDisciplinaAdmin();
@@ -1501,15 +1531,24 @@ async function renderDisciplinaAdminInit() {
 const GRAV_A = { leve:{lbl:'LEVE',c:'#EAF3DE',tc:'#27500A'}, grave:{lbl:'GRAVE',c:'#FAEEDA',tc:'#633806'}, muy_grave:{lbl:'MUY GRAVE',c:'#FCEBEB',tc:'#791F1F'} };
 
 function renderDisciplinaAdmin() {
-  const el  = document.getElementById('disciplinaAdminLista');
-  const q   = (document.getElementById('searchDisciplinaA')?.value||'').toLowerCase();
-  const gf  = document.getElementById('filtroGravedadA')?.value||'';
-  const rf  = document.getElementById('filtroResueltaA')?.value||'';
+  const el    = document.getElementById('disciplinaAdminLista');
+  const q     = (document.getElementById('searchDisciplinaA')?.value||'').toLowerCase();
+  const gf    = document.getElementById('filtroGravedadA')?.value||'';
+  const rf    = document.getElementById('filtroResueltaA')?.value||'';
+  const grpf  = document.getElementById('filtroGrupoA')?.value||'';
+  const tipof = document.getElementById('filtroTipoA')?.value||'';
+  const desde = document.getElementById('filtroFechaDesdeA')?.value||'';
+  const hasta = document.getElementById('filtroFechaHastaA')?.value||'';
   let lista = todasFaltasAdmin.filter(f => {
-    const mq = !q || (f.alumno?.nombre||'').toLowerCase().includes(q) || (f.tipo?.nombre||'').toLowerCase().includes(q);
-    const mg = !gf || f.tipo?.gravedad === gf;
-    const mr = rf==='' ? true : rf==='true' ? f.resuelta : !f.resuelta;
-    return mq && mg && mr;
+    const mq    = !q     || (f.alumno?.nombre||'').toLowerCase().includes(q) || (f.tipo?.nombre||'').toLowerCase().includes(q);
+    const mg    = !gf    || f.tipo?.gravedad === gf;
+    const mr    = rf===''  ? true : rf==='true' ? f.resuelta : !f.resuelta;
+    const mgrp  = !grpf  || String(f.alumno?.grupo?.id) === grpf;
+    const mtipo = !tipof || String(f.tipo?.id) === tipof;
+    const fhISO = f.fecha_hora ? f.fecha_hora.split('T')[0] : '';
+    const mdf   = !desde || fhISO >= desde;
+    const mhf   = !hasta || fhISO <= hasta;
+    return mq && mg && mr && mgrp && mtipo && mdf && mhf;
   });
   el.innerHTML = `<div style="font-size:12px;color:var(--gr);margin-bottom:10px">${lista.length} de ${todasFaltasAdmin.length} incidencias</div>` +
     (lista.length ? lista.map(f => {
@@ -1539,6 +1578,106 @@ function exportarDisciplinaCSV() {
   a.download = `incidencias_${new Date().toISOString().split('T')[0]}.csv`;
   a.click();
   UI.toast('✓ CSV exportado');
+}
+
+function exportarIncidenciasPDF() {
+  // Aplicar los mismos filtros activos
+  const q     = (document.getElementById('searchDisciplinaA')?.value||'').toLowerCase();
+  const gf    = document.getElementById('filtroGravedadA')?.value||'';
+  const rf    = document.getElementById('filtroResueltaA')?.value||'';
+  const grpf  = document.getElementById('filtroGrupoA')?.value||'';
+  const tipof = document.getElementById('filtroTipoA')?.value||'';
+  const desde = document.getElementById('filtroFechaDesdeA')?.value||'';
+  const hasta = document.getElementById('filtroFechaHastaA')?.value||'';
+
+  const lista = todasFaltasAdmin.filter(f => {
+    const mq    = !q     || (f.alumno?.nombre||'').toLowerCase().includes(q) || (f.tipo?.nombre||'').toLowerCase().includes(q);
+    const mg    = !gf    || f.tipo?.gravedad === gf;
+    const mr    = rf===''  ? true : rf==='true' ? f.resuelta : !f.resuelta;
+    const mgrp  = !grpf  || String(f.alumno?.grupo?.id) === grpf;
+    const mtipo = !tipof || String(f.tipo?.id) === tipof;
+    const fhISO = f.fecha_hora ? f.fecha_hora.split('T')[0] : '';
+    const mdf   = !desde || fhISO >= desde;
+    const mhf   = !hasta || fhISO <= hasta;
+    return mq && mg && mr && mgrp && mtipo && mdf && mhf;
+  });
+
+  if (!lista.length) { UI.toast('Sin incidencias con ese filtro'); return; }
+  UI.toast('Generando reporte…');
+
+  const GRAV = { leve:{lbl:'LEVE',c:'#27500A',bg:'#EAF3DE'}, grave:{lbl:'GRAVE',c:'#633806',bg:'#FAEEDA'}, muy_grave:{lbl:'MUY GRAVE',c:'#791F1F',bg:'#FCEBEB'} };
+
+  // Resumen de filtros activos para encabezado
+  const filtrosActivos = [];
+  if (q)      filtrosActivos.push(`Búsqueda: "${q}"`);
+  if (grpf)   filtrosActivos.push(`Grupo: ${document.getElementById('filtroGrupoA')?.selectedOptions[0]?.text||grpf}`);
+  if (tipof)  filtrosActivos.push(`Tipo: ${document.getElementById('filtroTipoA')?.selectedOptions[0]?.text||tipof}`);
+  if (gf)     filtrosActivos.push(`Gravedad: ${gf.replace('_',' ')}`);
+  if (rf)     filtrosActivos.push(rf==='true'?'Resueltas':'Activas');
+  if (desde)  filtrosActivos.push(`Desde: ${desde}`);
+  if (hasta)  filtrosActivos.push(`Hasta: ${hasta}`);
+
+  const estilos = `
+    body{font-family:Arial,sans-serif;font-size:11px;color:#222;margin:20px}
+    .header{border-bottom:2px solid #2e3618;padding-bottom:8px;margin-bottom:12px;display:flex;align-items:center;gap:12px}
+    .school{font-size:8px;color:#666;text-transform:uppercase;letter-spacing:.06em}
+    .title{font-size:15px;font-weight:700;color:#1a2010}
+    .subtitle{font-size:11px;color:#555;margin-top:4px}
+    .filtros{font-size:10px;color:#888;margin-bottom:10px;font-style:italic}
+    table{width:100%;border-collapse:collapse;font-size:10px;margin-top:8px}
+    th{background:#2e3618;color:#f1e640;padding:5px 7px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.04em}
+    td{padding:4px 7px;border-bottom:1px solid #eee;vertical-align:top}
+    tr:nth-child(even) td{background:#f9fafb}
+    .badge{display:inline-block;padding:1px 7px;border-radius:99px;font-weight:700;font-size:9px}
+    .ok{color:#0C447C;background:#E6F1FB}
+    .footer{margin-top:14px;font-size:8px;color:#999;text-align:right;border-top:1px solid #eee;padding-top:6px}
+    @media print{body{margin:0}}`;
+
+  const filas = lista.map(f => {
+    const g   = GRAV[f.tipo?.gravedad] || GRAV.leve;
+    const dt  = f.fecha_hora ? new Date(f.fecha_hora).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const res = f.resuelta ? '<span class="badge ok">RESUELTA</span>' : '—';
+    return `<tr>
+      <td><b>${f.alumno?.nombre||'—'}</b><br><span style="color:#888;font-size:9px">${f.alumno?.grupo?.nombre||'—'}</span></td>
+      <td><span class="badge" style="background:${g.bg};color:${g.c}">${g.lbl}</span><br><span style="font-size:9px">${f.tipo?.nombre||'—'}</span></td>
+      <td style="color:#555">${f.docente?.nombre||'—'}</td>
+      <td style="font-size:9px;color:#555">${dt}</td>
+      <td>${res}</td>
+      <td style="color:#555;font-size:9px">${f.descripcion||''}</td>
+    </tr>`;
+  }).join('');
+
+  const hoy = new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/>
+    <title>Reporte de Incidencias</title><style>${estilos}</style></head><body>
+    <div class="header">
+      <img src="../LogoTebam.png" alt="TEBAM" style="height:50px;width:auto"/>
+      <div>
+        <div class="school">Telebachillerato de Michoacán · TEBAM Digital</div>
+        <div class="title">Reporte de Incidencias Disciplinarias</div>
+        <div class="subtitle">${lista.length} registros · Generado: ${hoy}</div>
+      </div>
+    </div>
+    ${filtrosActivos.length ? `<div class="filtros">Filtros aplicados: ${filtrosActivos.join(' · ')}</div>` : ''}
+    <table>
+      <thead><tr>
+        <th>Alumno / Grupo</th>
+        <th>Gravedad / Tipo</th>
+        <th>Registrado por</th>
+        <th>Fecha y hora</th>
+        <th>Estado</th>
+        <th>Descripción</th>
+      </tr></thead>
+      <tbody>${filas}</tbody>
+    </table>
+    <div class="footer">TEBAM Digital · ${hoy}</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => { win.print(); }, 600);
 }
 
 /* ══ TUTORIAS ADMIN ══ */

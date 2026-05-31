@@ -780,6 +780,18 @@ const DB = window.DB = {
       const { error } = await sb.from('tutorias').delete().eq('id', id);
       if (error) throw error;
     },
+    // Cuenta tutorías pendientes para los hijos del padre autenticado
+    async contarPendientesPadre(padreId) {
+      const { data: tuts } = await sb.from('tutores').select('alumno_id').eq('padre_id', padreId);
+      const ids = (tuts || []).map(t => t.alumno_id);
+      if (!ids.length) return 0;
+      const { count, error } = await sb.from('tutorias')
+        .select('id', { count: 'exact', head: true })
+        .in('alumno_id', ids)
+        .eq('estado', 'pendiente');
+      if (error) return 0;
+      return count || 0;
+    },
   },
 
   // --- DISCIPLINA -----------------------------------------------------------
@@ -841,6 +853,18 @@ const DB = window.DB = {
     async eliminarFalta(id) {
       const { error } = await sb.from('faltas_disciplina').delete().eq('id', id);
       if (error) throw error;
+    },
+    // Cuenta incidencias no resueltas para los hijos del padre autenticado
+    async contarPendientesPadre(padreId) {
+      const { data: tuts } = await sb.from('tutores').select('alumno_id').eq('padre_id', padreId);
+      const ids = (tuts || []).map(t => t.alumno_id);
+      if (!ids.length) return 0;
+      const { count, error } = await sb.from('faltas_disciplina')
+        .select('id', { count: 'exact', head: true })
+        .in('alumno_id', ids)
+        .eq('resuelta', false);
+      if (error) return 0;
+      return count || 0;
     },
   },
 
