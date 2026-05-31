@@ -254,6 +254,30 @@ let CUR_TAB_P = 'califs';
 let CUR_PARCIAL_P = null;     // parcial seleccionado en portal padre
 let cacheParcialesP = [];     // parciales del ciclo del hijo
 
+/* ══ BADGES ══ */
+let _realtimeBadgeChannel = null;
+
+async function actualizarBadges() {
+  const padreId = Auth.user?.id;
+  if (!padreId) return;
+  const [cntTut, cntDis] = await Promise.all([
+    DB.tutorias.contarPendientesPadre(padreId),
+    DB.disciplina.contarPendientesPadre(padreId),
+  ]);
+  const nbTut = document.getElementById('nb-tutorias');
+  const nbDis = document.getElementById('nb-disciplina');
+  if (nbTut) { nbTut.textContent = cntTut; nbTut.style.display = cntTut > 0 ? 'inline-block' : 'none'; }
+  if (nbDis) { nbDis.textContent = cntDis; nbDis.style.display = cntDis > 0 ? 'inline-block' : 'none'; }
+}
+
+function suscribirBadgesRealtime() {
+  if (_realtimeBadgeChannel) return;
+  _realtimeBadgeChannel = sb.channel('padre-badges')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'tutorias' },    () => actualizarBadges())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'faltas_disciplina' }, () => actualizarBadges())
+    .subscribe();
+}
+
 /* ══ INIT ══ */
 (async () => {
   UI.initModals();
@@ -271,6 +295,10 @@ let cacheParcialesP = [];     // parciales del ciclo del hijo
   } else {
     seleccionarHijo(hijos[0].alumno);
   }
+
+  // Badges de notificación en sidebar
+  await actualizarBadges();
+  suscribirBadgesRealtime();
 })();
 
 /* ══ CARGAR HIJOS ══ */
